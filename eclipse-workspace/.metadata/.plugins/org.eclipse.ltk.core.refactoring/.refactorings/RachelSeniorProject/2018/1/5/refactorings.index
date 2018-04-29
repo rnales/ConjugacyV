@@ -1,0 +1,5 @@
+1517255717638	Rename local variable 'leftFreeLoop'
+1517255726077	Rename local variable 'rightFreeLoop'
+1517255798566	Rename local variable 'leftToRightFreeLoop'
+1517255829469	Rename local variable 'rightToLeftFreeLoop'
+1517423324727	Rename type 'ElementOfV'

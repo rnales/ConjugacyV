@@ -1,0 +1,255 @@
+package ThompsonsGroupV;
+import java.lang.IllegalArgumentException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+
+public class Vertex {
+
+	private HashMap<Role, Strand> strands;
+	private Type type;
+	private Node node;
+	private boolean hasBeenDeleted = false; //for use in reduction of strand diagrams
+	private boolean inStack = false; //for use in reduction of strand diagrams
+	private boolean isMarked = false; //for use in reduction of strand diagrams
+	private boolean isFound = false; //for use in separation into components
+	private String prefixID;  //for use in conversion from tree diagram to abstract strand diagram
+	private static int count = 0; //for use in assignment of IDs
+	private int vertexID; //arbitrary integer, used in vertex equality method
+	private  int columnID; //for use in construction of coboundary matrix
+	
+	/*
+	 * Constructor for a "blank" vertex
+	 */
+	public Vertex() {
+		this(Type.NULL);
+		this.vertexID = count++;
+	}
+	
+	/*
+	 * Constructor for a vertex with known type
+	 */
+	public Vertex(Type type) {
+		this.type = type;
+		this.vertexID = count++;
+		this.strands = new HashMap<Role, Strand>();
+	}
+	
+	/*
+	 * To delete a vertex, we set its data to null
+	 */
+	public void delete() {
+		this.strands = null;
+		this.type = Type.NULL;
+		this.node = null;
+	}
+	
+	/*
+	 * The following 8 methods are getters and setters
+	 * for this vertex's member data
+	 */
+	
+	/*
+	 * Return the columnID used in the coboundary matrix
+	 */
+	public int getColumnID() {
+		return columnID;
+	}
+	
+	/*
+	 * Set the columnID used in the coboundary matrix
+	 */
+	public void setColumnID(int c) {
+		columnID = c;
+	}
+	
+	/*
+	 * Set the prefix ID used in 
+	 * conversion from tree diagram to strand diagram
+	 */
+	public void setPrefixID(String prefixID) {
+		this.prefixID = prefixID;
+	}
+	
+	/*
+	 * Get the prefix ID used in 
+	 * conversion from tree diagram to strand diagram
+	 */
+	public String getPrefixID() {
+		return this.prefixID;
+	}
+	
+	/*
+	 * Store a pointer to the node which holds this vertex
+	 * in a double linked list
+	 */
+	public void setNode(Node node) {
+		this.node = node;
+		node.setVertex(this);
+	}
+	
+	/*
+	 * Return the node which holds this vertex
+	 * in a double linked list
+	 */
+	public Node getNode() {
+		return this.node;
+	}
+
+	/*
+	 * Return the type of this vertex
+	 */
+	public Type getType() {
+		return this.type;
+	}
+	
+	/*
+	 * Return the integer identifier for this vertex
+	 */
+	public int getVertexID() {
+		return vertexID;
+	}
+	
+	/*
+	 * The following 9 methods are getters and setters for 
+	 * this vertex's boolean markers
+	 */
+	public void hasBeenFound(boolean b) {
+		isFound = b;
+	}
+	
+	public boolean isFound() {
+		return isFound;
+	}
+	
+	public void hasBeenDeleted(boolean b) {
+		hasBeenDeleted = b;
+	}
+	
+	public Boolean hasBeenDeleted() {
+		return hasBeenDeleted;
+	}
+	
+	public void mark() {
+		isMarked = true;
+	}
+	
+	public void unMark() {
+		isMarked = false;
+	}
+	
+	public boolean isMarked() {
+		return isMarked;
+	}
+	
+	public void setInStack(boolean b) {
+		this.inStack = b;
+	}
+	
+	public boolean isInStack() {
+		return this.inStack;
+	}
+	
+	/*
+	 * Attach a given strand which 
+	 * plays a given role to this vertex
+	 */
+	public void setStrand(Role role, Strand strand) {
+		strands.put(role, strand);
+	}
+	
+	/*
+	 * Return a HashMap of all strands connected to this vetex
+	 */
+	public HashMap<Role, Strand> getStrands(){
+		return strands;
+	}
+	
+	/*
+	 * Return the number of distinct strands 
+	 * connected to this vertex
+	 */
+	public int numDistinctStrands() {
+		Collection<Strand> strands1 = this.strands.values();
+		HashSet<Strand> strands2 = new HashSet<Strand>(strands1);
+		return strands2.size();
+	}
+	
+	/*
+	 * Return the strand which 
+	 * plays the given role at this vertex
+	 */
+	public Strand getStrand(Role role) {
+		return strands.get(role);
+	}
+	
+	/*
+	 * Given a strand attached to this vertex,
+	 * return the vertex on the other end (NOT DIRECTED)
+	 */
+	public Vertex getOtherVertex(Strand s) {
+		if (s.getBeginVertex().equals(this)) {
+			return s.getEndVertex();
+		}
+		else if (s.getEndVertex().equals(this)) {
+			return s.getBeginVertex();
+		}
+		throw new IllegalArgumentException("Argument must be a strand attached to this vertex");
+	}
+	
+	/*
+	 * Change the end vertex of a strand for which this vertex is the begin vertex
+	 * The strand s must already be attached to this vertex
+	 */
+	public void setEndVertex(Strand s, Vertex v, Role r) {
+		s.setEndVertex(v);
+		s.setEndRole(r);
+		v.setStrand(r, s);
+	}
+	
+	/*
+	 * Change the end vertex of a strand for which this vertex is the begin vertex
+	 * and change the cvalue for s
+	 * The strand s must already be attached to this vertex
+	 */
+	public void setEndVertex(Strand s, int newCValue, Vertex endVertex, Role endRole) {
+		s.setEndVertex(endVertex);
+		s.setEndRole(endRole);
+		endVertex.setStrand(endRole, s);
+		s.setCValue(newCValue);
+	}
+	
+	/*
+	 * Object equality for two vertices
+	 */
+	public boolean equals(Vertex other) {
+		if (this.getVertexID() == other.getVertexID()) {
+			return true;
+		}
+		return false;
+	}
+	
+	/* Used for debugging */
+	
+	public String toString() {
+	StringBuilder r = new StringBuilder("Vertex ID: " + this.vertexID + ", Prefix ID: " + this.prefixID + ", Type: " + this.type);
+	r.append(System.getProperty("line.separator"));
+	Iterator<Strand> strands = this.strands.values().iterator();
+	int i=1;
+	while (strands.hasNext()) {
+		Strand s = strands.next();
+		r.append(s.toString());
+		i++;
+	}
+	return r.toString();
+}
+	
+//	public String toString() {
+//		return this.vertexID + "";
+//	}
+	
+	public static void main(String args[]) {
+			
+	}
+
+}

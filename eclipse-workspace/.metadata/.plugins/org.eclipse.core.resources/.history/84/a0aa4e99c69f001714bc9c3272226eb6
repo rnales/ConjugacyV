@@ -1,0 +1,29 @@
+package ThompsonsGroupV;
+import java.lang.IllegalArgumentException;
+
+
+public class BinarySequence {
+	
+	int val;
+	
+	public BinarySequence(int sequence) {
+		
+		String s = Integer.toString(sequence);
+		char[] chars = s.toCharArray();
+		for (char c:chars) {
+			if (c != 0 && c != 1) {
+				throw new IllegalArgumentException("You must enter a sequence containing only 0's and 1's");
+			}
+		}
+		val = sequence;
+		
+	}
+	
+	public static void main(String args[]) {
+		
+		//BinarySequence s = new BinarySequence(23);
+		BinarySequence t = new BinarySequence(0110);
+		System.out.println(t);
+	}
+
+}

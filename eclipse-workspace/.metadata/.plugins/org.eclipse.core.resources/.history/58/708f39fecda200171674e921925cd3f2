@@ -1,0 +1,35 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+
+public class ElementOfV {
+	
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the domain of an element of V
+	 * i.e. the top tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> domain;
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the range of an element of V
+	 * i.e. the bottom tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> range;
+	/*
+	 * A permutation which represents the mapping for
+	 * an interval in the domain of V to an interval of the range
+	 */
+	ArrayList<BinarySequence> map;
+	
+	public ElementOfV(ArrayList<BinarySequence> domain, ArrayList<BinarySequence> range, ArrayList<BinarySequence> map) {
+		
+		this.domain = domain;
+		this.range = range;
+		this.map = map;
+		
+	}
+	
+	
+
+}

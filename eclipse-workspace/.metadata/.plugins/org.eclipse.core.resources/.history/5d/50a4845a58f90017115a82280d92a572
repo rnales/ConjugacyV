@@ -1,0 +1,685 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Set;
+
+public class ElementOfV {
+	
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the domain of an element of V
+	 * i.e. the top tree in the tree diagram
+	 */
+	private ArrayList<BinarySequence> domain;
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the range of an element of V
+	 * i.e. the bottom tree in the tree diagram
+	 */
+	private ArrayList<BinarySequence> range;
+	/*
+	 * A permutation which represents the mapping for
+	 * an interval in the domain of V to an interval of the range
+	 * beginning with 0
+	 */
+	private List<Integer> permutation;
+	
+	private ArrayList<BinarySequence> orderedRange;
+	
+	/*
+	 * The number of cuts in the dyadic subdivision
+	 */
+	private int size;
+	
+	public ElementOfV(ArrayList<BinarySequence> domain, ArrayList<BinarySequence> range, List<Integer> p) {
+		
+		int d = domain.size();
+		
+		if (d == 0) {
+			throw new IllegalArgumentException("The domain must contain at least one interval");
+		}
+		
+		if (d != range.size()) {
+			throw new IllegalArgumentException("The domain and range must contain the same number of intervals");
+		}
+		
+		if (d!= p.size()) {
+			throw new IllegalArgumentException("The map must be the same length as the domain");
+		}
+		
+		if(!p.contains(0)) {
+			throw new IllegalArgumentException("The map must contain a 0 for the first interval");
+		}
+		
+		this.domain = domain;
+		this.range = range;
+		this.permutation = p;
+		this.size = d;
+		orderedRange = new ArrayList<BinarySequence>();
+		
+		for (int i=0; i<size; i++) {
+			int r = this.permutation.get(i);
+			orderedRange.add(range.get(r));
+		}
+
+		
+		
+	}
+	/*
+	 * Return the number of cuts in the dyadic subdivision
+	 * i.e. the number of intervals in the domain/range
+	 */
+	public int size() {
+		return this.size;
+	}
+	
+	public ArrayList<BinarySequence> getDomain(){
+		return this.domain;
+	}
+	
+	public ArrayList<BinarySequence> getRange(){
+		return this.range;
+	}
+	
+	public List<Integer> getPermutation(){
+		return this.permutation;
+	}
+	
+	public void displayDomain() {
+		for (int i=0; i<this.size; i++) {
+			BinarySequence b = domain.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public void displayRange() {
+		for (int i=0; i<this.size; i++) {
+			BinarySequence b = range.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public void displayPermutation() {
+		for (int i=0; i<this.size; i++) {
+			int b = permutation.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public ElementOfV getInverse() {
+		
+		ArrayList<BinarySequence> newDomain = this.range;
+		ArrayList<BinarySequence> newRange = this.domain;
+		Integer[] tempPermutation = new Integer[size];
+		
+		for (int i = 0; i<size; i++) {
+			int p = permutation.get(i);
+			tempPermutation[p] = i;
+		}
+		
+		List<Integer> newPermutation = Arrays.asList(tempPermutation);
+		ElementOfV inverse = new ElementOfV(newDomain, newRange, newPermutation);
+		return inverse;
+		
+	}
+	
+	private ReductionInfo isReduction(ArrayList<Integer> perm, ArrayList<BinarySequence> dom, ArrayList<BinarySequence> ran, int idx) {
+		ReductionInfo r = new ReductionInfo();
+		int p1 = perm.get(idx);
+		int p2=perm.get(idx+1);
+		if (p1 == p2 - 1) {
+			BinarySequence dom1 = dom.get(idx);
+			BinarySequence dom2 = dom.get(idx + 1);
+			if (BinarySequence.isOrderedCaret(dom1, dom2)) {
+				int rangeIdx1 = perm.get(idx);
+				int rangeIdx2 = perm.get(idx+1);
+				BinarySequence ran1 = ran.get(rangeIdx1);
+				BinarySequence ran2 = ran.get(rangeIdx2);
+				if (BinarySequence.isOrderedCaret(ran1, ran2)) {
+					r.isReduction = true;
+					r.p2 = p2;
+					r.domIdx1 = idx;
+					r.domIdx2 = idx + 1;
+					r.domGCP = dom1.getGCP(dom2);
+					r.lastDigit = BinarySequence.getLastDigit(r.domGCP);
+					r.rangeIdx1 = rangeIdx1;
+					r.rangeIdx2 = rangeIdx2;
+					r.rangeGCP = ran1.getGCP(ran2);
+					return r;
+				}
+				
+			}
+		}
+		r.isReduction = false;
+		return r;
+	}
+	
+	private class ReductionInfo{
+		boolean isReduction;
+		int p2;
+		int domIdx1;
+		int domIdx2;
+		BinarySequence domGCP;
+		int rangeIdx1;
+		int rangeIdx2;
+		BinarySequence rangeGCP;
+		String lastDigit;
+	}
+	
+	private ArrayList<Integer> reducePerm(ArrayList<Integer> perm, ReductionInfo r){
+		
+		int j = 0;
+		while (j<perm.size()) {
+			int current = perm.get(j);
+			if (current == r.p2) {
+				perm.remove(j);
+			}
+			else if (current>r.p2) {
+				perm.set(j, current - 1);
+				j++;
+			}
+			else {
+				j++;
+			}
+		}
+		return perm;
+	}
+	
+
+	
+	private ArrayList<BinarySequence> reduceDom(ArrayList<BinarySequence> dom, ReductionInfo r){
+		int j = 0;
+		while (j<dom.size()) {
+			if (j==r.domIdx1) {
+				dom.set(j, r.domGCP);
+			}
+			else if (j==r.domIdx2) {
+				dom.remove(j);
+			}
+			j++;
+		}
+		return dom;
+	}
+	
+	private ArrayList<BinarySequence> reduceRange(ArrayList<BinarySequence> ran, ReductionInfo r){
+		int j = 0;
+		while (j<ran.size()) {
+			if (j==r.rangeIdx1) {
+				ran.set(j, r.rangeGCP);
+			}
+			else if (j==r.rangeIdx2) {
+				ran.remove(j);
+			}
+			j++;
+		}
+		return ran;
+		
+	}
+	
+	
+	public void reduce() {
+		ArrayList<BinarySequence> newDomain = new ArrayList<BinarySequence>( this.domain);
+		ArrayList<BinarySequence> newRange = new ArrayList<BinarySequence> (this.range);
+		ArrayList<Integer> newPermutation = new ArrayList<Integer>( (ArrayList<Integer>) this.permutation );
+		
+		boolean foundReduction;
+		int i=0;
+		while (i<newPermutation.size()-1) {
+			foundReduction = false;
+			ReductionInfo r = this.isReduction(newPermutation, newDomain, newRange, i);
+			if (r.isReduction) {
+				foundReduction = true;
+				newPermutation = reducePerm(newPermutation, r);
+				newDomain = reduceDom(newDomain, r);
+				newRange = reduceRange(newRange, r);
+			
+			}	
+			//if no reduction happened, increment i (keep looking)
+			if (!foundReduction) {
+				i++;
+			}
+			// if a reduction happened in the right child, back up to see if another reduction was created
+			else if(i>0 && r.lastDigit.equals("1")) {
+				i--;
+			}
+			//else a reduction happened in the left child so we should check this spot again, nothing happens to i
+		}
+		this.domain = newDomain;
+		this.range = newRange;
+		this.permutation = newPermutation;
+		this.size = newDomain.size();
+	}
+	
+	
+	//g*f == g.multiply(f) == f on top, g on bottom: range of f must equal range of g
+	//
+	
+	/*
+	 * Takes a binary sequence as input and outputs a caret in a list
+	 * with the left child in the 0th index and the right child in the 1st index
+	 */
+	private static ArrayList<BinarySequence> makeCaret(BinarySequence prefix) {
+		ArrayList<BinarySequence> b = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence(prefix.toString() + "0"), 
+				new BinarySequence(prefix.toString() + "1")));
+		return b;	
+	}
+	
+	
+	private static List<Integer> addCaret(List<Integer> perm, int idx){
+		int p = perm.get(idx);
+		int j = 0;
+		boolean addLast = false;
+		int threshold = perm.size();
+		if (idx == threshold -1 ) {
+			addLast = true;
+		}
+//		if (idx == threshold - 1) {
+//			threshold++;
+//			addLast = true;
+//		}
+//		if (addLast) {
+//			while (j<perm.size()) {
+//				int current = perm.get(j);
+//				if (j==threshold-1) {
+//					perm.set(j, p+1);
+//				}
+//				else if (j==idx+1) {
+//					perm.add(j, p+1);
+//				}
+//				else if (current>p+1) {
+//					perm.set(j, current + 1);
+//				}
+//				if (j==perm.size()-1) {
+//					perm.add(0);
+//				}
+//				j++;
+//			}
+//		}
+//		else {
+			while (j<perm.size()) {
+				int current = perm.get(j);
+				if (j==idx + 1) {
+					perm.add(j, p+1);
+				}
+				else if (current>p) {
+					perm.set(j, current+1);
+				}
+				if (j==threshold && addLast) {
+					perm.add(j+1, 0);
+				}
+				j++;
+			}
+//		}
+		
+		
+		return perm;
+	}
+	
+
+
+	
+	private static ArrayList<BinarySequence> addCaret(ArrayList<BinarySequence> array, int idx) {
+		BinarySequence prefix = array.get(idx);
+		ArrayList<BinarySequence> carets = makeCaret(prefix);
+		BinarySequence leftCaret = carets.get(0);
+		BinarySequence rightCaret = carets.get(1);
+		int j = 0;
+		int threshold = array.size();
+		if (idx == threshold - 1) {
+			threshold++;
+		}
+		while(j<threshold) {
+
+			if(j==idx) {
+				array.set(j, leftCaret);
+			}
+			else if(j==idx + 1) {
+				array.add(j, rightCaret);
+			}
+			j++;
+		}
+		return array;
+		
+	}
+	
+	
+
+	
+	public ElementOfV multiply(ElementOfV f) {
+		ArrayList<BinarySequence> domainf = f.getDomain();
+		ArrayList<BinarySequence> rangef = f.getRange();
+		List<Integer> permf = f.getPermutation();
+		
+		ArrayList<BinarySequence> domaing = new ArrayList<BinarySequence>(this.domain);
+		List<Integer> permg = new ArrayList<Integer>(this.permutation);
+		ArrayList<BinarySequence> rangeg = new ArrayList<BinarySequence>(this.range);
+		
+		List<Integer> newPerm = new ArrayList<Integer>();
+
+		int i = 0;
+		BinarySequence rangefCurrent;
+		BinarySequence domaingCurrent;
+
+		while(i<rangef.size()) {
+			rangefCurrent = rangef.get(i);
+			domaingCurrent = domaing.get(i);
+			
+			if (!rangefCurrent.equals(domaingCurrent)) {
+				if (rangefCurrent.getLength() < domaingCurrent.getLength()) {
+					int rangefIdx = i;
+					int domainfIdx = permf.indexOf(i);
+					
+					rangef = addCaret(rangef, rangefIdx);
+					permf = addCaret(permf, domainfIdx);
+					domainf = addCaret(domainf, domainfIdx);
+					
+					System.out.println("i= " + i + ", f: domain, perm, range");
+					System.out.println(domainf.toString());
+					System.out.println(permf.toString());
+					System.out.println(rangef.toString());
+				}
+
+				else {
+					int domaingIdx = i;
+					int rangegIdx = permg.get(i);
+					
+					
+					
+					domaing = addCaret(domaing, domaingIdx);
+					permg = addCaret(permg, domaingIdx);
+					rangeg = addCaret(rangeg, rangegIdx);
+					
+					System.out.println("i= " + i + ", g: domain, perm, range");
+					System.out.println(domaing.toString());
+					System.out.println(permg.toString());
+					System.out.println(rangeg.toString());
+				}
+			}
+			
+			else {
+				i++;
+			}
+		}
+		newPerm = composePerms(permf, permg);
+		return new ElementOfV(domainf, rangeg, newPerm);
+	}
+	
+	public static List<Integer> composePerms(List<Integer> perm1, List<Integer> perm2){
+		List<Integer> newPerm = new ArrayList<Integer>();
+		int size1 = perm1.size();
+		int size2 = perm2.size();
+		int k = 0;
+		if (size1>size2) {
+			
+			while (k<size1) {
+				int idx = perm1.get(k);
+				if (idx>size2-1) {
+					newPerm.add(idx);
+					
+				}
+				else {
+					int p = perm2.get(idx);
+					newPerm.add(p);
+				}
+				k++;
+			}
+		}
+		else if (size2>size1) {
+			while (k<size2) {
+				int p;
+				if (k>size1-1) {
+					p = perm2.get(k);
+					
+				}
+				else {
+					int idx = perm1.get(k);
+					p = perm2.get(idx);
+				}
+				newPerm.add(p);
+				k++;
+			}
+		}
+		else {
+			while ( k<perm1.size()) {
+				int idx = perm1.get(k);
+				int p = perm2.get(idx);
+				newPerm.add(p);
+				k++;
+			}
+		}
+
+		return newPerm;
+	}
+	
+	private void addVertex(Vertex v, DoubleLinkedList vertices) {
+		Node node = new Node(v);
+		vertices.add(node);
+		
+	}
+	
+	public AbstractStrandDiagram convertToStrandDiagram() {
+		DoubleLinkedList vertices = new DoubleLinkedList();
+		Vertex source = new Vertex(Type.SOURCE);
+		source.setId("source");
+		Vertex sink = new Vertex(Type.SINK);
+		sink.setId("sink");
+		addVertex(source, vertices);
+		addVertex(sink, vertices);
+		Set<String> splitPrefixes = new HashSet<String>();
+		for (BinarySequence b:this.domain) {
+			splitPrefixes.addAll(b.getProperPrefixes());
+		}
+
+		//Create all split vertices
+		
+		Hashtable<String, Vertex> splits = new Hashtable<String, Vertex>();
+		for (String s:splitPrefixes) {
+			Vertex v = new Vertex(Type.SPLIT);
+			addVertex(v, vertices);
+			splits.put(s, v);
+			v.setId(s);
+		}
+		Enumeration<String> keys = splits.keys();
+		while(keys.hasMoreElements()) {
+			String key = keys.nextElement();
+			Vertex v = splits.get(key);
+			Strand s;
+			if (key.equals("e")) {
+				s = new Strand(source, v, Role.CHILD, Role.PARENT);
+				source.setStrand(Role.CHILD, s);
+				source.setEndVertex(s, v, Role.PARENT);
+			}
+			else {
+				Role r = Role.NULL;
+				if (BinarySequence.getLastDigit(key).equals("0")) {
+					r = Role.LCHILD;
+				}
+				else {
+					r = Role.RCHILD;
+				}
+				
+				String parent;
+				if (key.equals("0")||key.equals("1")) {
+					parent = "e";
+				}
+				else {
+					parent = BinarySequence.getPrefix(key);
+				}
+				
+				Vertex vParent = splits.get(parent);
+				
+				s = new Strand(vParent, v, r, Role.PARENT);
+				vParent.setStrand(r, s);
+				v.setStrand(Role.PARENT, s);
+			}	
+		}
+		
+		//Create all merge vertices
+		
+		Set<String> mergePrefixes = new HashSet<String>();
+		for (BinarySequence b:this.range) {
+			mergePrefixes.addAll(b.getProperPrefixes());
+		}
+		Hashtable<String, Vertex> merges = new Hashtable<String, Vertex>();
+		for (String s:mergePrefixes) {
+			Vertex v = new Vertex(Type.MERGE);
+			addVertex(v,vertices);
+			merges.put(s, v);
+			v.setId(s);
+		}
+		keys = merges.keys();
+		while(keys.hasMoreElements()) {
+			String key = keys.nextElement();
+			Vertex v  = merges.get(key);
+			Strand s;
+			if (key.equals("e")) {
+				s = new Strand(v, sink, Role.CHILD, Role.PARENT);
+				v.setStrand(Role.CHILD, s);
+				v.setEndVertex(s, sink, Role.PARENT);
+			}
+			else {
+				Role r;
+				if (BinarySequence.getLastDigit(key).equals("0")) {
+					r = Role.LPARENT;
+				}
+				else {
+					r = Role.RPARENT;
+				}
+				
+				String child;
+				if (key.equals("0")||key.equals("1")) {
+					child = "e";
+				}
+				else {
+					child = BinarySequence.getPrefix(key);
+				}
+				
+				Vertex vChild = merges.get(child);
+				s = new Strand(v, vChild, Role.CHILD, r);
+				v.setStrand(Role.CHILD, s);
+				vChild.setStrand(r, s);
+			
+			}
+		}
+		
+		//Use permutation to create strands to connect splits with merges
+		
+		int domIdx = 0;
+		int rangeIdx = -1;
+		while(domIdx<permutation.size()) {
+			rangeIdx = permutation.get(domIdx);
+			BinarySequence domain = this.domain.get(domIdx);
+			BinarySequence range = this.range.get(rangeIdx);
+			
+			//get split info
+			
+			String splitId;
+			if (domain.toString().equals("0") || domain.toString().equals("1")) {
+				splitId = "e";
+			}
+			else {
+				splitId = domain.getLargestProperPrefix();
+			}
+			Vertex split = splits.get(splitId);
+			String last = BinarySequence.getLastDigit(domain);
+			Role beginRole = Role.NULL;
+			if (last.equals("0")) {
+				beginRole = Role.LCHILD;
+			}
+			else {
+				beginRole = Role.RCHILD;
+			}
+			
+			
+			//get merge info
+			
+			String mergeId;
+			if (range.toString().equals("0")||range.toString().equals("1")) {
+				mergeId = "e";
+			}
+			else {
+				mergeId = range.getLargestProperPrefix();
+			}
+			Vertex merge = merges.get(mergeId);
+			last = BinarySequence.getLastDigit(range);
+			Role endRole = Role.NULL;
+			if (last.equals("0")) {
+				endRole = Role.LPARENT;
+			}
+			else {
+				endRole = Role.RPARENT;
+			}
+			
+			//use info to construct new strand
+			
+			Strand s = new Strand(split, merge, beginRole, endRole);
+			split.setStrand(beginRole, s);
+			merge.setStrand(endRole, s);
+			
+			//increment domIdx
+			domIdx++;
+		}
+		
+		return new AbstractStrandDiagram(vertices, source, sink);
+	}
+	
+	
+	public void display() {
+		this.displayDomain();
+		this.displayRange();
+		this.displayPermutation();
+	}
+	
+	
+	public static void main(String[] args) {
+		
+		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence("0"),
+				new BinarySequence("100"),
+				new BinarySequence("1010"),
+				new BinarySequence("1011"),
+				new BinarySequence("11")
+				));
+		
+		ArrayList<BinarySequence> range = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence("00"),
+				new BinarySequence("010"),
+				new BinarySequence("011"),
+				new BinarySequence("10"),
+				new BinarySequence("11")
+				));
+		
+		List<Integer> perm = new ArrayList<Integer>(Arrays.asList(2,1,4,0,3));
+		
+		ElementOfV x = new ElementOfV(domain, range, perm);		
+		
+		AbstractStrandDiagram a = x.convertToStrandDiagram();
+
+		System.out.println(a.display());
+
+	}
+	
+	
+
+}

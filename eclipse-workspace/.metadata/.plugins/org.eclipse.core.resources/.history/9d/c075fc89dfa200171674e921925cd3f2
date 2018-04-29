@@ -1,0 +1,84 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+public class ElementOfV {
+	
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the domain of an element of V
+	 * i.e. the top tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> domain;
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the range of an element of V
+	 * i.e. the bottom tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> range;
+	/*
+	 * A permutation which represents the mapping for
+	 * an interval in the domain of V to an interval of the range
+	 * beginning with 0
+	 */
+	ArrayList<Integer> permutation;
+	
+	HashMap<BinarySequence, BinarySequence> map;
+	
+	int size;
+	/*
+	 * The number of cuts in the dyadic subdivision
+	 */
+	
+	public ElementOfV(ArrayList<BinarySequence> domain, ArrayList<BinarySequence> range, ArrayList<Integer> p) {
+		
+		int d = domain.size();
+		
+		if (d == 0) {
+			throw new IllegalArgumentException("The domain must contain at least one interval");
+		}
+		
+		if (d != range.size()) {
+			throw new IllegalArgumentException("The domain and range must contain the same number of intervals");
+		}
+		
+		if (d!= p.size()) {
+			throw new IllegalArgumentException("The map must be the same length as the domain");
+		}
+		
+		if(!p.contains(0)) {
+			throw new IllegalArgumentException("The map must contain a 0 for the first interval");
+		}
+		
+		this.domain = domain;
+		this.range = range;
+		this.permutation = p;
+		this.size = d;
+		this.map = new HashMap<BinarySequence, BinarySequence>(d);
+		for (int i=0; i<d; i++) {
+			BinarySequence a = domain.get(i);
+			int idx = p.get(i);
+			BinarySequence b = range.get(idx);
+			map.put(a, b);
+		}
+		
+		
+	}
+	/*
+	 * Return the number of cuts in the dyadic subdivision
+	 * i.e. the number of intervals in the domain/range
+	 */
+	public int size() {
+		return this.size;
+	}
+	
+	public void display() {
+		String domain;
+		for (BinarySequence b:this.domain) {
+		}
+	}
+	
+	
+
+}

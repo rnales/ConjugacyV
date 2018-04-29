@@ -1,0 +1,428 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.TreeMap;
+import java.util.concurrent.LinkedBlockingQueue;
+
+public class ConjugacyChecker {
+	
+	TreeDiagram a;
+	TreeDiagram b;
+	ClosedAbstractStrandDiagram A;
+	ClosedAbstractStrandDiagram B;
+	LinkedList<ClosedAbstractStrandDiagram> aComponents;
+	LinkedList<ClosedAbstractStrandDiagram> bComponents;
+	int numComponents;
+//	int[] aComponentsSizes;
+//	int[] bComponentsSizes;
+	HashMap<ClosedAbstractStrandDiagram, Integer> aComponentsSizes;
+	HashMap<ClosedAbstractStrandDiagram, Integer> bComponentsSizes;
+	int i;
+	int j;
+	Boolean keepConstructingIsomorphism;
+	
+	public ConjugacyChecker() {
+		
+	}
+	
+	public ConjugacyChecker(ArrayList<BinarySequence> aDomain, ArrayList<BinarySequence> aRange, ArrayList<Integer> aPerm, 
+			ArrayList<BinarySequence> bDomain, ArrayList<BinarySequence> bRange, ArrayList<Integer> bPerm) {
+		
+		this.a = new TreeDiagram(aDomain, aRange, aPerm);
+		this.b = new TreeDiagram(bDomain, bRange, bPerm);
+	
+	}
+	
+	public ConjugacyChecker(TreeDiagram a, TreeDiagram b) {
+		this.a = a;
+		this.b = b;
+		
+		
+	}
+	
+	public boolean areConjugate() {
+		A = a.convertToStrandDiagram().close();
+		B = b.convertToStrandDiagram().close();
+		
+		A.reduce();
+		B.reduce();
+		
+		/* If A and B do not have the same number of vertices then they are not conjugate */
+		if (A.size() != B.size()) {
+			return false;
+		}
+		
+		/* If A and B do not have the same sets of free loops then they are not conjugate */
+		if ( !(A.getFreeLoops().equals( B.getFreeLoops() )) ){
+			return false;
+		}
+		
+		SeparateComponents c = new SeparateComponents();
+		aComponents = c.getComponents(A);
+		bComponents = c.getComponents(B);
+		numComponents = aComponents.size();
+		
+		/* If A and B do not have the same number of components then they are not conjugate */
+		if (numComponents != bComponents.size()) {
+			return false;
+		}
+		
+		
+		i = 0;
+		aComponentsSizes = new HashMap<ClosedAbstractStrandDiagram, Integer>();
+		bComponentsSizes = new HashMap<ClosedAbstractStrandDiagram, Integer>();
+		
+		
+		while (i<numComponents) {
+			ClosedAbstractStrandDiagram a = aComponents.get(i);
+			ClosedAbstractStrandDiagram b = bComponents.get(i);
+			aComponentsSizes.put(a, a.size());
+			bComponentsSizes.put(b, b.size());
+			i++;
+		}
+		
+		SortMapByValue sm = new SortMapByValue();
+		TreeMap<ClosedAbstractStrandDiagram, Integer> aComponentsSorted = sm.sortMapByValue(aComponentsSizes);
+		TreeMap<ClosedAbstractStrandDiagram, Integer> bComponentsSorted = sm.sortMapByValue(bComponentsSizes);
+		
+		/* If the sizes of the components in A do not equal the sizes of the components in B then they are not conjugate */
+		
+		ClosedAbstractStrandDiagram[] aKeys = aComponentsSorted.keySet().toArray(new ClosedAbstractStrandDiagram[aComponentsSorted.size()]);
+		ClosedAbstractStrandDiagram[] bKeys = aComponentsSorted.keySet().toArray(new ClosedAbstractStrandDiagram[bComponentsSorted.size()]);
+		
+		i = 0;
+		while (i < numComponents) {
+			ClosedAbstractStrandDiagram aKey = aKeys[i];
+			ClosedAbstractStrandDiagram bKey = bKeys[i];
+			if (aComponentsSorted.get(aKey) != bComponentsSorted.get(bKey)) {
+				return false;
+			}
+			i++;
+		}
+		
+		/* Check for isomorphism between A and B */
+		
+		i = 0;
+		j = 0;
+		ClosedAbstractStrandDiagram aCurrComponent;
+		ClosedAbstractStrandDiagram bCurrComponent;
+		
+		while (i < numComponents) {
+			aCurrComponent = aKeys[i];
+			while (j<numComponents) {
+				bCurrComponent = bKeys[j];
+				
+				if (bCurrComponent.size() != aCurrComponent.size()) {
+					continue;
+				}
+				
+				/* Construct isomorphism between aCurrComponent and bCurrComponent */
+				
+				HashMap<Strand, Strand> strandBijection = new HashMap<Strand, Strand>();
+				HashMap<Vertex, Vertex> vertexBijection = new HashMap<Vertex, Vertex>();
+				Queue<Strand> strandsToProcess = new LinkedBlockingQueue<Strand>();
+				Queue<Vertex> verticesToProcess = new LinkedBlockingQueue<Vertex>();
+				Node fixedANode  = aCurrComponent.getVertices().getFirstNode();
+				Vertex fixedA = fixedANode.getVertex(); //note that this vertex a is fixed for the entirety of the current (j) while loop
+				Type fixedAType = fixedA.getType();
+				Node bNode = bCurrComponent.getVertices().getFirstNode();
+				
+				int k = 0;
+				Vertex v;
+				Vertex w;
+				
+				while (k<bCurrComponent.getVertices().getLength()) {
+					
+					Vertex fixedB = bNode.getVertex(); //note that this vertex b is fixed only within this iteration of the current (k) while loop
+					Type fixedBType = fixedB.getType();
+					if (fixedAType.equals(fixedBType)) {
+						
+						//if fixedA and fixedB have the same type then we can start constructing an isomorphism
+						fixedA.mark();
+						fixedB.mark();
+						verticesToProcess.add(fixedA);
+						vertexBijection.put(fixedA, fixedB);
+						keepConstructingIsomorphism = true;
+						while (keepConstructingIsomorphism && (!verticesToProcess.isEmpty() || !strandsToProcess.isEmpty())) {
+							
+							if (!verticesToProcess.isEmpty()) {
+								//Process a vertex
+								v = verticesToProcess.remove();
+								w = vertexBijection.get(v);
+								for (Strand s: v.getStrands().values()) {
+									Role r = s.getRole(v);
+									Strand t = w.getStrand(r);
+									if (s.isMarked() && t.isMarked()) {
+										//the following should be an unnecessary check, 
+										//since once s and t are marked they will be added to the bijection... remove?
+										 if (strandBijection.containsKey(s)) {
+											if (strandBijection.get(s).equals(t)) {
+												//this is what we want
+												continue;
+											}
+											else {
+												//this isomorphism doesn't work
+												keepConstructingIsomorphism = false;
+												break;
+											}
+										}
+										 else {
+											 //this should be unreachable...
+											 //raise alarm! create exception
+										 }
+									}
+									else if ( !s.isMarked() && !t.isMarked() ){
+										s.mark();
+										t.mark();
+										strandsToProcess.add(s);
+										strandBijection.put(s, t);
+									}
+									else {
+										//if s is marked but not t, or vice versa, then
+										//this isomorphism doesn't work
+										keepConstructingIsomorphism = false;
+										break;
+									}
+									
+								}
+							}
+							
+							if (!strandsToProcess.isEmpty()) {
+								//Process a strand
+								Strand s = strandsToProcess.remove();
+								Strand t = strandBijection.get(s);
+								Vertex sBegin = s.getBeginVertex();
+								Vertex sEnd = s.getEndVertex();
+								Vertex tBegin = t.getBeginVertex();
+								Vertex tEnd = t.getEndVertex();
+								if (sBegin.isMarked() && tBegin.isMarked()) {
+									if (vertexBijection.containsKey(sBegin)) {
+										if (vertexBijection.get(sBegin).equals(tBegin)) {
+											//this is what we want
+										}
+										else {
+											//this isomorphism doesn't work
+											keepConstructingIsomorphism = false;
+											break;
+										}
+									}
+									else {
+										//again, shouldn't be necessary..
+										//raise the alarm! create exception
+									}
+								}
+								else if (!sBegin.isMarked() && !tBegin.isMarked()) {
+									if ( (sBegin.getType().equals(tBegin.getType()) )
+											&& (s.getRole(sBegin).equals(t.getRole(tBegin))) ) {
+										sBegin.mark();
+										tBegin.mark();
+										vertexBijection.put(sBegin, tBegin);
+										verticesToProcess.add(sBegin);
+									}
+									else {
+										//this isomorphism doesn't work
+										keepConstructingIsomorphism = false;
+										break;
+									}
+									
+									
+								}
+								else {
+									keepConstructingIsomorphism = false;
+									break;
+								}
+								
+								if (sEnd.isMarked() && tEnd.isMarked()) {
+									if (vertexBijection.containsKey(sEnd)) {
+										if (vertexBijection.get(sEnd).equals(tEnd)) {
+											//this is what we want
+										}
+										else {
+											//this isomorphism doesn't work
+											keepConstructingIsomorphism = false;
+											break;
+										}
+									}
+									else {
+										//shouldn't be necessary and should be deleted
+										vertexBijection.put(sEnd, tEnd);
+									}
+								}
+								else if (!sEnd.isMarked() && !tEnd.isMarked()) {
+									if ( (sEnd.getType().equals(sBegin.getType()) )
+											&& (s.getRole(sEnd).equals(t.getRole(tEnd))) ) {
+										sEnd.mark();
+										tEnd.mark();
+										vertexBijection.put(sEnd, tEnd);
+										verticesToProcess.add(sEnd);
+									}
+									
+								}
+								else {
+									keepConstructingIsomorphism = false;
+									break;
+								}
+							}
+						}
+						if (keepConstructingIsomorphism) {
+							//Isomorphism did not fail! mark isomorphism found
+							aCurrComponent.foundIsomorphism(true);
+							
+							//call to cohomology checker will happen here (instead of returning true)
+							
+						}
+						
+					//if fixedA and fixedB do not have the same type, nothing happens - go to next iteration of loop
+						
+					}
+					
+					bNode = bNode.getNext();
+					k++;
+					
+				}
+			}		
+		}
+		
+		/* Check if isomorphism was found for all components */
+		for (ClosedAbstractStrandDiagram a : aKeys) {
+			if (!a.foundIsomorphism()) {
+				return false;
+			}
+		}
+		
+		
+		
+		
+		
+		
+		/* eventually, after all checks.... */
+		return true;
+	}
+	
+	public class SortMapByValue {
+		 
+
+		public SortMapByValue() {
+			
+		}
+		
+		public TreeMap<ClosedAbstractStrandDiagram, Integer> sortMapByValue(HashMap<ClosedAbstractStrandDiagram, Integer> map){
+			Comparator<ClosedAbstractStrandDiagram> comparator = new ValueComparator(map);
+			//TreeMap is a map sorted by its keys. 
+			//The comparator is used to sort the TreeMap by keys. 
+			TreeMap<ClosedAbstractStrandDiagram, Integer> result = new TreeMap<ClosedAbstractStrandDiagram, Integer>(comparator);
+			result.putAll(map);
+			return result;
+		}
+	}
+	
+	
+	class ValueComparator implements Comparator<ClosedAbstractStrandDiagram>{
+	 
+		HashMap<ClosedAbstractStrandDiagram, Integer> map = new HashMap<ClosedAbstractStrandDiagram, Integer>();
+	 
+		public ValueComparator(HashMap<ClosedAbstractStrandDiagram, Integer> map){
+			this.map.putAll(map);
+		}
+	 
+		@Override
+		public int compare(ClosedAbstractStrandDiagram c1, ClosedAbstractStrandDiagram c2) {
+			if(map.get(c1) >= map.get(c2)){
+				return -1;
+			}else{
+				return 1;
+			}	
+		}
+	}
+	
+	
+
+	
+	public static void main(String args[]) {
+
+		/*
+		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence("000"),
+				new BinarySequence("001"),
+				new BinarySequence("0100"),
+				new BinarySequence("0101"),
+				new BinarySequence("011"),
+				new BinarySequence("10"),
+				new BinarySequence("110"),
+				new BinarySequence("111")
+			));
+			
+			ArrayList<BinarySequence> range = new ArrayList<BinarySequence>(Arrays.asList(
+					new BinarySequence("00"),
+					new BinarySequence("010"),
+					new BinarySequence("0110"),
+					new BinarySequence("0111"),
+					new BinarySequence("100"),
+					new BinarySequence("101"),
+					new BinarySequence("110"),
+					new BinarySequence("111")
+				));
+			
+			
+			ArrayList<Integer> perm = new ArrayList<Integer>(Arrays.asList(4,0,3,1,2,7,5,6));
+			
+			TreeDiagram t0 = new TreeDiagram(domain, range, perm);
+			
+			AbstractStrandDiagram t1 = t0.convertToStrandDiagram();
+			
+			ClosedAbstractStrandDiagram t2 = t1.close();
+			
+			t2.reduce();
+			
+			SeparateComponents c = new SeparateComponents();
+			
+			LinkedList<ClosedAbstractStrandDiagram> l = c.getComponents(t2);
+			
+			int i = 0;
+			HashMap<Integer, ClosedAbstractStrandDiagram> aComponentsSizes = new HashMap<Integer, ClosedAbstractStrandDiagram>();
+			while (i<l.size()) {
+				ClosedAbstractStrandDiagram a = l.get(i);
+				aComponentsSizes.put(4-i, a);
+				i++;
+			}
+			aComponentsSizes = (HashMap<Integer, ClosedAbstractStrandDiagram>) sortByKey(aComponentsSizes);
+		
+	        for (Map.Entry<Integer, ClosedAbstractStrandDiagram> entry : aComponentsSizes.entrySet()) 
+	        	System.out.println("Key = " + entry.getKey() + 
+                       ", Value = " + entry.getValue());
+                       
+            */
+		
+		HashMap<ClosedAbstractStrandDiagram, Integer> map = new HashMap<ClosedAbstractStrandDiagram, Integer>();
+		map.put(new ClosedAbstractStrandDiagram(), 10);
+		map.put(new ClosedAbstractStrandDiagram(), 30);
+		map.put(new ClosedAbstractStrandDiagram(), 50);
+		map.put(new ClosedAbstractStrandDiagram(), 40);
+		map.put(new ClosedAbstractStrandDiagram(), 20);
+		System.out.println(map);
+ 
+		ConjugacyChecker c = new ConjugacyChecker();
+		SortMapByValue sm = c.new SortMapByValue();
+		TreeMap<ClosedAbstractStrandDiagram, Integer> sortedMap = sm.sortMapByValue(map);  
+		System.out.println(sortedMap);
+		
+//		int[] a = {1,3,2};
+//		int[] b = {3,2,1};
+//		Arrays.sort(a);
+//		Arrays.sort(b);
+//		int i = 0;
+//		while (i<a.length) {
+//			System.out.println(a[i] == b[i]);
+//			i++;
+//		}
+		
+		
+	}
+
+}

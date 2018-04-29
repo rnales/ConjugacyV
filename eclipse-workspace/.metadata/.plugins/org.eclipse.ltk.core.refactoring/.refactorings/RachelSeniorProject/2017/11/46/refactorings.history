@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename method &apos;ThompsonsGroupV.Vertex.isInStack(...)&apos; to &apos;setInStack&apos;&#x0D;&#x0A;- Original project: &apos;RachelSeniorProject&apos;&#x0D;&#x0A;- Original element: &apos;ThompsonsGroupV.Vertex.isInStack(...)&apos;&#x0D;&#x0A;- Renamed element: &apos;ThompsonsGroupV.Vertex.setInStack(...)&apos;&#x0D;&#x0A;- Update references to refactored element" delegate="false" deprecate="false" description="Rename method &apos;isInStack&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.method" input="/src&lt;ThompsonsGroupV{Vertex.java[Vertex~isInStack~Z" name="setInStack" references="true" stamp="1510788568050" version="1.0"/>
+</session>

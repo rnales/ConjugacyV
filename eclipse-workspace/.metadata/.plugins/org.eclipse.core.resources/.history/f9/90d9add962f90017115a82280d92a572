@@ -1,0 +1,180 @@
+package ThompsonsGroupV;
+
+public class DoubleLinkedList {
+	
+	
+	private Node first;
+	private Node last;
+	private int length;
+	
+	
+	
+	public DoubleLinkedList() {
+		length = 0;
+	}
+	
+	
+	
+	public DoubleLinkedList(Node first) {
+		this.first = first;
+		this.first.setPrevious(this.first);
+		this.last = first;
+		this.last.setNext(this.last);
+		length++;
+	}
+	
+//	public DoubleLinkedList(Node first, Node last) {
+//		this.first = first;
+//		this.first.setPrevious(this.first);
+//		this.last = last;
+//		this.last.setNext(last);
+//		this.first.setNext(this.last);
+//		this.last.setPrevious(this.first);
+//		length = 2;
+//	}
+	
+	public Node getFirstNode() {
+		return first;
+	}
+	
+	
+	public void add(Vertex vertex) {
+		Node node = new Node(vertex);
+		vertex.setNode(node);
+		add(node);
+		
+	}
+	
+	/*
+	 * Add a new node to end of double lined list
+	 */
+	public void add(Node node) {
+		if (length == 0) {
+			first = node;
+			first.setPrevious(first);
+			
+			last = node;
+			last.setNext(last);
+			
+			first.setNext(last);
+			last.setPrevious(first);
+		}
+		else {
+			last.setNext(node);
+			node.setPrevious(last);
+			last = node;
+			last.setNext(last);
+		}
+		length++;
+		
+	}
+	
+	public void delete(Node node) {
+		//check if list contains vertex first?
+		if (node.equals(this.first)) {
+			Node next = node.getNext();
+			next.setPrevious(next);
+			node.setNext(null);
+			node.setPrevious(null);
+			first = next;
+			
+		}
+		else if (node.equals(this.last)) {
+			Node prev = node.getPrevious();
+			prev.setNext(prev);
+			last.setNext(null);
+			last.setPrevious(null);
+			last = prev;
+			
+		}
+		else {
+			Node prev = node.getPrevious();
+			Node next = node.getNext();
+			prev.setNext(next);
+			next.setPrevious(prev);
+			node.setNext(null);
+			node.setPrevious(null);
+			length--;
+		}
+		
+	}
+	
+//	/*
+//	 * Insert a new node between two adjacent, pre-existing nodes in the double linked list
+//	 */
+//	public void insert(Node node, Node prev, Node next) {
+//		prev.setNext(node);
+//		next.setPrevious(node);
+//		node.setPrevious(prev);
+//		node.setNext(next);
+//		length++;
+//	}
+//	
+//	/*
+//	 * Insert a new node following the specified pre-existing node in the double linked list
+//	 */
+//	public void insert(Node node, Node prev) {
+//		Node next = prev.getNext();
+//		node.setNext(next);
+//		next.setPrevious(node);
+//		node.setPrevious(prev);
+//		prev.setNext(node);
+//		length++;
+//	}
+	
+	public boolean contains(Node node) {
+		Node current = this.first;
+		int i=0;
+		while (i<this.length) {
+			if (current.equals(node)) {
+				return true;
+			}
+			current = current.getNext();
+			i++;
+		}
+		return false;
+	}
+	
+	public int getLength() {
+		return length;
+	}
+	
+	
+	public static void main(String args[]) {
+		Node a = new Node();
+		a.setId(1);
+		Node b = new Node();
+		b.setId(2);
+		Node c = new Node();
+		c.setId(3);
+		Node d = new Node();
+		d.setId(4);
+		DoubleLinkedList list = new DoubleLinkedList(a);
+		list.add(b);
+		list.add(c);
+		list.add(d);
+		System.out.println("a (1): prev = " + a.getPrevious() + ", next = " + a.getNext());
+		System.out.println("c (3): prev = " + c.getPrevious() + ", next = " + c.getNext());
+		System.out.println("d (4): prev = " + d.getPrevious() + " , next = " + d.getNext());
+		System.out.println(list.contains(a));
+		System.out.println(list.contains(b));
+		System.out.println(list.contains(c));
+		System.out.println(list.contains(d));
+		Node node = new Node();
+		System.out.println(list.contains(node));
+//		list.delete(b);
+
+		
+//		list.delete(a);
+		
+		list.delete(d);
+		System.out.println("a (1): prev = " + a.getPrevious() + ", next = " + a.getNext());
+		System.out.println("b (2): prev = " + b.getPrevious() + ", next = " + b.getNext());
+		System.out.println("c (3): prev = " + c.getPrevious() + ", next = " + c.getNext());
+//		System.out.println("d (4): prev = " + d.getPrevious() + " , next = " + d.getNext());
+		
+		
+	}
+	
+
+}

@@ -1,0 +1,173 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import Jama.Matrix;
+
+public class CoboundaryMatrix {
+
+	private ClosedAbstractStrandDiagram d;
+	private HashMap<Integer, Vertex> vertices;
+	private HashMap<Integer, Strand> edges;
+	private HashMap<Role, Strand> strands;
+	int numVertices;
+	int numEdges;
+	private Matrix matrix;
+	
+	public HashMap<Integer, Vertex> getVertices(){
+		return vertices;
+	}
+	
+	public HashMap<Integer, Strand> getEdges(){
+		return edges;
+	}
+	
+	public CoboundaryMatrix(ClosedAbstractStrandDiagram c) {
+		
+		int i;
+		int j;
+		
+		this.d = c;
+		this.vertices = new HashMap<Integer, Vertex>();
+		this.edges = new HashMap<Integer, Strand>();
+		DoubleLinkedList nodes = d.getVertices();
+
+		int length = nodes.getLength();
+		i = 0;
+		Node n = nodes.getFirstNode();
+		Vertex vertex;
+		
+		while (i < length) {
+			vertex = n.getVertex();
+			vertex.setColumnID(i);
+			vertices.put(i, vertex);
+			n = n.getNext();
+			i++;
+		}
+
+		i = 0;
+		numEdges = 0;
+		while (i < vertices.size()) {
+			Vertex v = vertices.get(i);
+			strands = v.getStrands();
+			for (Strand s: strands.values()) {
+				if (!s.isFound()) {
+					s.markFound();
+					s.setRowID(numEdges);
+					edges.put(numEdges, s);
+					numEdges++;
+				}
+			}
+			i++;
+		}
+		
+		d.idsAssigned(true);
+		
+		//after loop, numEdges = number of edges = length of each column
+		//number of columns = number of vertices + 1 = vertices.size() + 1 (the last column is the difference in co-cycles)
+		numVertices = vertices.size();
+		
+
+		/* Create matrix filled with 0's */
+		matrix = new Matrix(numEdges, numVertices);
+		
+
+		
+
+		
+		//assign 1's and -1's based on incoming and outgoing vertices
+		
+		i = 0;
+		Vertex v;
+		Strand e;
+		Role r;
+		while (i < numVertices) {
+			v = vertices.get(i);
+			strands = v.getStrands();
+			j = 0;
+			while (j < numEdges) {
+				e = edges.get(j);
+				for (Strand s: strands.values()) {
+					if (e.getRowID() == s.getRowID()) {
+						r = s.getRole(v);
+						if (r.equals(Role.PARENT) 
+								|| r.equals(Role.LPARENT)
+								|| r.equals(Role.RPARENT)) {
+							//incoming edge
+							double temp = matrix.get(j, i);
+							temp = temp - 1.0;
+							matrix.set(j, i, temp);
+						}
+						else if (r.equals(Role.CHILD)
+								|| r.equals(Role.LCHILD)
+								|| r.equals(Role.RCHILD)) {
+							//outgoing edge
+							double temp = matrix.get(j, i);
+							temp = temp + 1.0;
+							matrix.set(j, i, temp);
+						}
+							
+					}
+				}
+				j++;
+			}
+			i++;
+		}
+		
+		
+		
+		
+	}
+	
+	public Matrix getMatrix(){
+		return matrix;
+	}
+	
+	public static void main(String args[]) {
+		
+
+		
+		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence("00"),
+				new BinarySequence("01"),
+				new BinarySequence("10"),
+				new BinarySequence("11")
+			));
+		
+		ArrayList<BinarySequence> range = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence("00"),
+				new BinarySequence("01"),
+				new BinarySequence("10"),
+				new BinarySequence("11")
+			));
+		
+		ArrayList<Integer> perm = new ArrayList<Integer>(Arrays.asList(2, 0, 1, 3));
+		
+		TreeDiagram t = new TreeDiagram(domain, range, perm);
+		AbstractStrandDiagram a = t.convertToStrandDiagram();
+		ClosedAbstractStrandDiagram c = a.close();
+		
+//		CoboundaryMatrix cm = new CoboundaryMatrix(c);
+//		System.out.println(cm.getVertices());
+//		System.out.println(cm.getEdges());
+//		
+//		
+//		
+//		Matrix matrix  = cm.getMatrix();
+//		matrix.print(4, 0);
+		
+		Matrix A = new Matrix(4,3);
+		A.set(0, 0, 1.0);
+		A.set(1, 1, 1.0);
+		A.set(3, 2, 1.0);
+		A.print(4, 0);
+		
+		Matrix B = new Matrix(4,1);
+		B.set(0, 0, 1.0);
+		B.set(3, 0, 1.0);
+		B.print(4, 0);
+
+		
+	}
+}

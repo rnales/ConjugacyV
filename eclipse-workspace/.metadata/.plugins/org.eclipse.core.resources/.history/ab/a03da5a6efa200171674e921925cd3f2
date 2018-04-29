@@ -1,0 +1,124 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Set;
+
+public class ElementOfV {
+	
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the domain of an element of V
+	 * i.e. the top tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> domain;
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the range of an element of V
+	 * i.e. the bottom tree in the tree diagram
+	 */
+	ArrayList<BinarySequence> range;
+	/*
+	 * A permutation which represents the mapping for
+	 * an interval in the domain of V to an interval of the range
+	 * beginning with 0
+	 */
+	ArrayList<Integer> permutation;
+	
+	HashMap<BinarySequence, BinarySequence> map;
+	
+	int size;
+	/*
+	 * The number of cuts in the dyadic subdivision
+	 */
+	
+	public ElementOfV(ArrayList<BinarySequence> domain, ArrayList<BinarySequence> range, ArrayList<Integer> p) {
+		
+		int d = domain.size();
+		
+		if (d == 0) {
+			throw new IllegalArgumentException("The domain must contain at least one interval");
+		}
+		
+		if (d != range.size()) {
+			throw new IllegalArgumentException("The domain and range must contain the same number of intervals");
+		}
+		
+		if (d!= p.size()) {
+			throw new IllegalArgumentException("The map must be the same length as the domain");
+		}
+		
+		if(!p.contains(0)) {
+			throw new IllegalArgumentException("The map must contain a 0 for the first interval");
+		}
+		
+		this.domain = domain;
+		this.range = range;
+		this.permutation = p;
+		this.size = d;
+		this.map = new HashMap<BinarySequence, BinarySequence>(d);
+		for (int i=0; i<d; i++) {
+			BinarySequence a = domain.get(i);
+			int idx = p.get(i);
+			BinarySequence b = range.get(idx);
+			map.put(a, b);
+		}
+		
+		
+	}
+	/*
+	 * Return the number of cuts in the dyadic subdivision
+	 * i.e. the number of intervals in the domain/range
+	 */
+	public int size() {
+		return this.size;
+	}
+	
+	public void display() {
+		StringBuilder domain = new StringBuilder();
+		StringBuilder range = new StringBuilder();
+		Set<BinarySequence> keysTemp = map.keySet();
+		BinarySequence[] keys = (BinarySequence[]) keysTemp.toArray();
+		Collection<BinarySequence> valsTemp = map.values();
+		BinarySequence[] vals = (BinarySequence[]) valsTemp.toArray();
+		
+		for (int i=0; i<size; i++) {
+			if (i==size - 1) {
+				domain.append(keys[i]);
+				range.append(vals[i]);
+			}
+			else{
+				domain.append(keys[i] + ", ");
+				range.append(vals[i] + ", ");
+			}
+			System.out.println(domain);
+			System.out.println(range);
+			
+		}
+	}
+	
+	public static void main(String[] args) {
+		
+		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>();
+		domain.add(new BinarySequence("00"));
+		domain.add(new BinarySequence("01"));
+		domain.add(new BinarySequence("10"));
+		domain.add(new BinarySequence("11"));
+		
+		ArrayList<BinarySequence> range = new ArrayList<BinarySequence>();
+		range.add(new BinarySequence("00"));
+		range.add(new BinarySequence("010"));
+		range.add(new BinarySequence("011"));
+		range.add(new BinarySequence("1"));
+		
+		ArrayList<Integer> permutation = new ArrayList<Integer>(Arrays.asList(3,1,4,2));
+		
+		ElementOfV x = new ElementOfV(domain, range, permutation);
+		
+	}
+	
+	
+
+}

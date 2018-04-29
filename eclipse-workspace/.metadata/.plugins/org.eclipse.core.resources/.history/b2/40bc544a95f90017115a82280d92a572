@@ -1,0 +1,257 @@
+package ThompsonsGroupV;
+
+import java.util.Set;
+import java.util.Stack;
+
+public class ClosedAbstractStrandDiagram {
+
+	private DoubleLinkedList vertices;
+	private Set<Integer> freeLoops;
+	private Stack<Vertex> splitsToCheck;
+	
+	public ClosedAbstractStrandDiagram (AbstractStrandDiagram d) {
+		DoubleLinkedList vertices = d.getVertices();
+		
+		int i = 0;
+		Node node = vertices.getFirstNode();
+		while (i<vertices.getLength()) {
+			System.out.println(node.getVertex().getId() + ", " + node.getVertex().getType());
+			i++;
+			node = node.getNext();
+		}
+		
+		Vertex sink = d.getSink();
+		Vertex source = d.getSource();
+		
+		Strand bottom = sink.getStrand(Role.PARENT);
+		Vertex merge = sink.getEndVertex(bottom);
+		Strand top = source.getStrand(Role.CHILD);
+		Vertex split = source.getEndVertex(top);
+		merge.setEndVertex(bottom, split, Role.PARENT);
+		
+		bottom.incrementCValue();
+		
+		this.vertices = vertices;
+		
+		System.out.println();
+		int j = 0;
+		node = this.vertices.getFirstNode();
+		while (j<this.vertices.getLength()) {
+			System.out.println(node.getVertex().getId() + ", " + node.getVertex().getType());
+			j++;
+			node = node.getNext();
+		}
+		
+		//Delete source and sink
+		deleteVertex(sink);
+		deleteVertex(source);
+		
+		//Delete unused strand, formerly connecting source to top merge
+		top.delete();
+		
+		System.out.println();
+		j = 0;
+		node = this.vertices.getFirstNode();
+		while (j<this.vertices.getLength()) {
+			System.out.println(node.getVertex().getId() + ", " + node.getVertex().getType());
+			j++;
+			node = node.getNext();
+		}
+	}
+	
+	public void deleteVertex(Vertex v) {
+		Node node = v.getNode();
+		vertices.delete(node);
+		v.delete();
+	}
+	
+	public void reduce() {
+		this.splitsToCheck = AbstractStrandDiagram.getSplitsToCheck(this.vertices);
+		
+		while (!splitsToCheck.isEmpty()) {
+			Vertex split = splitsToCheck.pop();
+			split.setInStack(false);
+			
+			Strand lchildStrand = split.getStrand(Role.LCHILD);
+			Strand rchildStrand = split.getStrand(Role.RCHILD);
+			
+			Vertex lchildEnd = split.getEndVertex(lchildStrand);
+			Vertex rchildEnd = split.getEndVertex(rchildStrand);
+			
+			Role lchildEndRole = lchildStrand.getRole(lchildEnd);
+			Role rchildEndRole = rchildStrand.getRole(rchildEnd);
+			
+			Strand parent = split.getStrand(Role.PARENT);
+			Vertex splitParent = split.getEndVertex(parent);
+
+			reductionI(split, splitParent, parent, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+					lchildEndRole, rchildEndRole);
+			
+			reductionII(split, splitParent, parent, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+					lchildEndRole, rchildEndRole);
+		}
+		
+	}
+	
+	public void reductionI(Vertex split, Vertex splitParent, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+			Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole) {
+		int lchildC = lchildStrand.getCValue();
+		int rchildC = rchildStrand.getCValue();
+		if (lchildEnd.equals(rchildEnd)
+				&& lchildEndRole.equals(Role.LPARENT)
+				&& rchildEndRole.equals(Role.RPARENT)
+				& lchildC == rchildC) {
+			
+			Vertex merge = lchildEnd;
+			Strand mergeChildStrand = merge.getStrand(Role.CHILD);
+			Role newRole = mergeChildStrand.getRole(merge);
+			Vertex mergeChild = merge.getEndVertex(mergeChildStrand);
+			
+			//check for free loops
+			if (mergeChildStrand.equals(splitParentStrand)){
+				int f = splitParentStrand.getCValue() + lchildC;
+				freeLoops.add(f);
+			}
+			
+			else {
+				int newC = splitParentStrand.getCValue() + rchildStrand.getCValue() + mergeChildStrand.getCValue();
+				splitParent.setEndVertex(splitParentStrand, newC, mergeChild, newRole);
+			}
+
+			//Delete vertices
+			deleteVertex(split);
+			deleteVertex(merge);
+			
+			//Delete strands
+			lchildStrand.delete();
+			rchildStrand.delete();
+			mergeChildStrand.delete();
+			
+			if (splitParent.getType().equals(Type.SPLIT)) {
+				if (!splitParent.isInStack()) {
+					splitsToCheck.push(splitParent);	
+					splitParent.setInStack(true);
+				}
+			}
+			if (mergeChild.getType().equals(Type.SPLIT)) {
+				if (!mergeChild.isInStack()) {
+					splitsToCheck.push(mergeChild);
+					mergeChild.setInStack(true);
+				}
+			}
+		}
+	}
+	
+	public void reductionII(Vertex split, Vertex splitParent, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+			Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole) {
+		if(splitParent.getType().equals(Type.MERGE)) {
+			//Type II Reduction
+			
+			Vertex merge = splitParent;
+			Strand lparentStrand = merge.getStrand(Role.LPARENT);
+			Strand rparentStrand = merge.getStrand(Role.RPARENT);
+			Vertex lparentEnd = merge.getEndVertex(lparentStrand);
+			Vertex rparentEnd = merge.getEndVertex(rparentStrand);
+			
+			lchildEnd = split.getEndVertex(lchildStrand);
+			rchildEnd = split.getEndVertex(rchildStrand);
+			
+			Role newLeftRole = lchildStrand.getRole(lchildEnd);
+			Role newRightRole = rchildStrand.getRole(rchildEnd);
+			
+			//check for free loops
+			boolean leftFreeLoop = lparentStrand.equals(lchildStrand);
+			boolean rightFreeLoop = rparentStrand.equals(rchildStrand);
+			boolean leftToRightFreeLoop = lparentStrand.equals(rchildStrand);
+			boolean rightToLeftFreeLoop = rparentStrand.equals(lchildStrand);
+			int splitParentC = splitParentStrand.getCValue();
+			int lparentC = lparentStrand.getCValue();
+			int rparentC = rparentStrand.getCValue();
+			int lchildC = lchildStrand.getCValue();
+			int rchildC = rchildStrand.getCValue();
+			
+			if (leftFreeLoop && rightFreeLoop) {
+				int f1 = lparentC + splitParentC;
+				freeLoops.add(f1);
+				int f2 = rparentC + splitParentC;
+				freeLoops.add(f2);
+			}
+			else if (leftFreeLoop) {
+				int f = lparentC + splitParentC;
+				freeLoops.add(f);
+				
+				int newRightC = rparentC + splitParentC + rchildC;
+				rparentEnd.setEndVertex(rparentStrand, newRightC, rchildEnd, newRightRole);
+			}
+			else if (rightFreeLoop) {
+				int f = rparentC + splitParentC;
+				freeLoops.add(f);
+				
+				int newLeftC = lparentC + splitParentC + lchildC;
+				lparentEnd.setEndVertex(lparentStrand, newLeftC, lchildEnd, newLeftRole);
+			}
+			else if (leftToRightFreeLoop && rightToLeftFreeLoop) {
+				int f = lparentC + rparentC + 2*splitParentC;
+				freeLoops.add(f);
+			}
+			
+			//Last case: no free loops
+			else {
+				int newLeftC = lparentC + splitParentC + lchildC;
+				int newRightC = rparentC + splitParentC + rchildC;
+				lparentEnd.setEndVertex(lparentStrand, newLeftC, lchildEnd, newLeftRole);
+				rparentEnd.setEndVertex(rparentStrand, newRightC, rchildEnd, newRightRole);
+				
+			}
+			
+			//Delete vertices
+			deleteVertex(merge);
+			deleteVertex(split);
+			
+			//Delete strands
+			lchildStrand.delete();
+			rchildStrand.delete();
+			splitParentStrand.delete();
+			
+			//Check for potential new reductions created
+			if (lparentEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(lparentEnd);
+				lparentEnd.setInStack(true);
+			}
+			if (rparentEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(rparentEnd);
+				rparentEnd.setInStack(true);
+			}
+			if (lchildEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(lchildEnd);
+				lchildEnd.setInStack(true);
+			}
+			if (rchildEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(rchildEnd);
+				rchildEnd.setInStack(true);
+			}
+		}
+	}
+	
+	public void test() {
+		System.out.println("Number of vertices: " + vertices.getLength());
+		int i = 0;
+		
+	}
+	
+	public String display() {
+		StringBuilder r = new StringBuilder();
+		int i = 0;
+		Node node = vertices.getFirstNode();
+		
+		while(i<vertices.getLength()) {
+			System.out.println(node.getVertex().getId() + ", ");
+			System.out.println(node.getVertex().display());
+			node = node.getNext();
+			i++;
+		}
+
+		return r.toString();
+	}
+	
+}

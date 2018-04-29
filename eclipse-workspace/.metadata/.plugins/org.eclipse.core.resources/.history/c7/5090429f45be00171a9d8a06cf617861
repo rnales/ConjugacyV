@@ -1,0 +1,733 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+
+public class ElementOfV {
+	
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the domain of an element of V
+	 * i.e. the top tree in the tree diagram
+	 */
+	private ArrayList<BinarySequence> domain;
+	/*
+	 * An ordered list of complete binary prefixes
+	 * which represents the intervals for the range of an element of V
+	 * i.e. the bottom tree in the tree diagram
+	 */
+	private ArrayList<BinarySequence> range;
+	/*
+	 * A permutation which represents the mapping for
+	 * an interval in the domain of V to an interval of the range
+	 * beginning with 0
+	 */
+	private List<Integer> permutation;
+	
+	private ArrayList<BinarySequence> orderedRange;
+	
+	/*
+	 * The number of cuts in the dyadic subdivision
+	 */
+	private int size;
+	
+	public ElementOfV(ArrayList<BinarySequence> domain, ArrayList<BinarySequence> range, List<Integer> p) {
+		
+		int d = domain.size();
+		
+		if (d == 0) {
+			throw new IllegalArgumentException("The domain must contain at least one interval");
+		}
+		
+		if (d != range.size()) {
+			throw new IllegalArgumentException("The domain and range must contain the same number of intervals");
+		}
+		
+		if (d!= p.size()) {
+			throw new IllegalArgumentException("The map must be the same length as the domain");
+		}
+		
+		if(!p.contains(0)) {
+			throw new IllegalArgumentException("The map must contain a 0 for the first interval");
+		}
+		
+		this.domain = domain;
+		this.range = range;
+		this.permutation = p;
+		this.size = d;
+		orderedRange = new ArrayList<BinarySequence>();
+		
+		for (int i=0; i<size; i++) {
+			int r = this.permutation.get(i);
+			orderedRange.add(range.get(r));
+		}
+
+		
+		
+	}
+	/*
+	 * Return the number of cuts in the dyadic subdivision
+	 * i.e. the number of intervals in the domain/range
+	 */
+	public int size() {
+		return this.size;
+	}
+	
+	public ArrayList<BinarySequence> getDomain(){
+		return this.domain;
+	}
+	
+	public ArrayList<BinarySequence> getRange(){
+		return this.range;
+	}
+	
+	public List<Integer> getPermutation(){
+		return this.permutation;
+	}
+	
+	public void displayDomain() {
+		for (int i=0; i<this.size; i++) {
+			BinarySequence b = domain.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public void displayRange() {
+		for (int i=0; i<this.size; i++) {
+			BinarySequence b = range.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public void displayPermutation() {
+		for (int i=0; i<this.size; i++) {
+			int b = permutation.get(i);
+			if (i==this.size-1) {
+				System.out.println(b);
+			}
+			else {
+				System.out.print(b + ", ");
+			}
+		}
+	}
+	
+	public ElementOfV getInverse() {
+		
+		ArrayList<BinarySequence> newDomain = this.range;
+		ArrayList<BinarySequence> newRange = this.domain;
+		Integer[] tempPermutation = new Integer[size];
+		
+		for (int i = 0; i<size; i++) {
+			int p = permutation.get(i);
+			tempPermutation[p] = i;
+		}
+		
+		List<Integer> newPermutation = Arrays.asList(tempPermutation);
+		ElementOfV inverse = new ElementOfV(newDomain, newRange, newPermutation);
+		return inverse;
+		
+	}
+	
+	private ReductionInfo isReduction(ArrayList<Integer> perm, ArrayList<BinarySequence> dom, ArrayList<BinarySequence> ran, int idx) {
+		ReductionInfo r = new ReductionInfo();
+		int p1 = perm.get(idx);
+		int p2=perm.get(idx+1);
+		if (p1 == p2 - 1) {
+			if (BinarySequence.isOrderedCaret(dom.get(idx), dom.get(idx + 1))) {
+				int rangeIdx1 = perm.get(idx);
+				int rangeIdx2 = perm.get(idx+1);
+				if (BinarySequence.isOrderedCaret(ran.get(rangeIdx1), ran.get(rangeIdx2))) {
+					r.isReduction = true;
+					r.p1 = p1;
+					r.p2 = p2;
+					r.domIdx1 = idx;
+					r.domIdx2 = idx + 1;
+					r.rangeIdx1 = rangeIdx1;
+					r.rangeIdx2 = rangeIdx2;
+					return r;
+				}
+				
+			}
+		}
+		r.isReduction = false;
+		return r;
+	}
+	
+	private class ReductionInfo{
+		boolean isReduction;
+		int p1;
+		int p2;
+		int domIdx1;
+		int domIdx2;
+		int rangeIdx1;
+		int rangeIdx2;
+	}
+	
+	private ArrayList<Integer> reducePerm(ArrayList<Integer> perm, int p2){
+		
+		int j = 0;
+		while (j<perm.size()) {
+			int current = perm.get(j);
+			if (current == p2) {
+				perm.remove(j);
+			}
+			else if (current>p2) {
+				perm.set(j, current - 1);
+				j++;
+			}
+			else {
+				j++;
+			}
+		}
+		return perm;
+	}
+	
+	private class DomainHelper{
+		ArrayList<BinarySequence> dom;
+		String lastDigit;
+	}
+	
+	private DomainHelper reduceDom(ArrayList<BinarySequence> dom, int idx1, int idx2){
+		DomainHelper d = new DomainHelper();
+		int j = 0;
+		while (j<dom.size()) {
+			BinarySequence current = dom.get(j);
+			if (j==idx1) {
+				BinarySequence next = dom.get(idx2);
+				BinarySequence gcp = current.getGCP(next);
+				d.lastDigit = BinarySequence.getLastDigit(gcp);
+				dom.set(j, gcp);
+			}
+			else if (j==idx2) {
+				dom.remove(j);
+			}
+			j++;
+		}
+		d.dom = dom;
+		return d;
+	}
+	
+	private ArrayList<BinarySequence> reduceRange(ArrayList<BinarySequence> ran, int idx1, int idx2){
+		int j = 0;
+		while (j<ran.size()) {
+			BinarySequence current = ran.get(j);
+			if (j==idx1) {
+				BinarySequence next = ran.get(idx2);
+				ran.set(j, current.getGCP(next));
+			}
+			else if (j==idx2) {
+				ran.remove(j);
+			}
+			j++;
+		}
+		return ran;
+		
+	}
+	
+	
+	public void reduce() {
+		ArrayList<BinarySequence> newDomain = this.domain;
+		ArrayList<BinarySequence> newRange = this.range;
+		ArrayList<Integer> newPermutation = (ArrayList<Integer>) this.permutation;
+		
+		boolean foundReduction;
+		String lastDigit = "";
+		int i=0;
+		while (i<newPermutation.size()-1) {
+			foundReduction = false;
+			ReductionInfo r = this.isReduction(newPermutation, newDomain, newRange, i);
+			if (r.isReduction) {
+				foundReduction = true;
+				newPermutation = reducePerm(newPermutation, r.p2);
+				DomainHelper d = reduceDom(newDomain, r.domIdx1, r.domIdx2);
+				newDomain = d.dom;
+				lastDigit = d.lastDigit;
+				newRange = reduceRange(newRange, r.rangeIdx1, r.rangeIdx2);
+			
+			}	
+			//if no reduction happened, increment i (keep looking)
+			if (!foundReduction) {
+				i++;
+			}
+			// if a reduction happened in the right child, back up to see if another reduction was created
+			else if(i>0 && lastDigit.equals("1")) {
+				i--;
+			}
+			//else a reduction happened in the left child so we should check this spot again, nothing happens to i
+		}
+		this.domain = newDomain;
+		this.range = newRange;
+		this.permutation = newPermutation;
+		this.size = newDomain.size();
+	}
+	
+	
+	//g*f == g.multiply(f) == f on top, g on bottom: range of f must equal range of g
+	//
+	
+	/*
+	 * Takes a binary sequence as input and outputs a caret in a list
+	 * with the left child in the 0th index and the right child in the 1st index
+	 */
+	private static ArrayList<BinarySequence> makeCaret(BinarySequence prefix) {
+		ArrayList<BinarySequence> b = new ArrayList<BinarySequence>(Arrays.asList(
+				new BinarySequence(prefix.toString() + "0"), 
+				new BinarySequence(prefix.toString() + "1")));
+		return b;	
+	}
+	
+	
+	private static List<Integer> addCaret(List<Integer> perm, int idx){
+		int p = perm.get(idx);
+		int j = 0;
+		int threshold = perm.size();
+		boolean addLast = false;
+		if (idx == threshold - 1) {
+			threshold++;
+			addLast = true;
+		}
+		while (j<threshold) {
+			if (addLast && j==threshold-1) {
+				perm.add(j, p+1);
+			}
+			else  {
+				int current = perm.get(j);
+				if (j==idx+1) {
+					perm.add(j, current+1);
+				}
+				else if (current>p) {
+					perm.set(j, current+1);
+				}
+			}
+		j++;	
+		}
+		
+		return perm;
+	}
+	
+
+
+	
+	private static ArrayList<BinarySequence> addCaret(ArrayList<BinarySequence> array, int idx) {
+		BinarySequence prefix = array.get(idx);
+		ArrayList<BinarySequence> carets = makeCaret(prefix);
+		BinarySequence leftCaret = carets.get(0);
+		BinarySequence rightCaret = carets.get(1);
+		int j = 0;
+		int threshold = array.size();
+		if (idx == threshold - 1) {
+			threshold++;
+		}
+		while(j<threshold) {
+
+			if(j==idx) {
+				array.set(j, leftCaret);
+			}
+			else if(j==idx + 1) {
+				array.add(j, rightCaret);
+			}
+			j++;
+		}
+		return array;
+		
+	}
+	
+	
+
+	
+	public ElementOfV multiply(ElementOfV f) {
+		ArrayList<BinarySequence> domainf = f.getDomain();
+		ArrayList<BinarySequence> rangef = f.getRange();
+		List<Integer> permf = f.getPermutation();
+		
+		ArrayList<BinarySequence> domaing = new ArrayList<BinarySequence>(this.domain);
+		List<Integer> permg = new ArrayList<Integer>(this.permutation);
+		ArrayList<BinarySequence> rangeg = new ArrayList<BinarySequence>(this.range);
+		
+		List<Integer> newPerm = new ArrayList<Integer>();
+		
+		System.out.println("Domain f: " + domainf.toString());
+		System.out.println("Range f: " + rangef.toString());
+		System.out.println("Domain g: " + domaing.toString());
+		System.out.println("Range f: " + rangef.toString());
+		
+		int i = 0;
+		BinarySequence rangefCurrent;
+		BinarySequence domaingCurrent;
+
+		while(i<rangef.size()) {
+			
+			rangefCurrent = rangef.get(i);
+			domaingCurrent = domaing.get(i);
+			
+			if (!rangefCurrent.equals(domaingCurrent)) {
+				
+				
+				if (rangefCurrent.getLength() < domaingCurrent.getLength()) {
+					
+					System.out.println("make caret in f");
+					
+					int rangefIdx = i;
+					int domainfIdx = permf.indexOf(i);
+					
+					rangef = addCaret(rangef, rangefIdx);
+					
+					System.out.println("caret added to rangef");
+					System.out.println("Domain f: " + domainf.toString());
+					System.out.println("Range f: " + rangef.toString());
+					System.out.println("Domain g: " + domaing.toString());
+					System.out.println("Range g: " + rangeg.toString());
+					
+					permf = addCaret(permf, domainfIdx);
+					
+					System.out.println("caret added to permf");
+					System.out.println("Domain f: " + domainf.toString());
+					System.out.println("Range f: " + rangef.toString());
+					System.out.println("Domain g: " + domaing.toString());
+					System.out.println("Range g: " + rangeg.toString());
+					
+					domainf = addCaret(domainf, domainfIdx);
+					
+					System.out.println("caret added to domainf");
+					System.out.println("Domain f: " + domainf.toString());
+					System.out.println("Range f: " + rangef.toString());
+					System.out.println("Domain g: " + domaing.toString());
+					System.out.println("Range g: " + rangeg.toString());
+					
+	
+				}
+
+				else {
+					
+					System.out.println("make caret in g");
+					
+					int domaingIdx = i;
+					int rangegIdx = permg.get(i);
+					
+					domaing = addCaret(domaing, domaingIdx);
+					permg = addCaret(permg, domaingIdx);
+					rangeg = addCaret(rangeg, rangegIdx);
+					
+				}
+
+			}
+			else {
+				i++;
+			}
+
+			
+			System.out.println("i = " + i);
+			System.out.println("Domain f: " + domainf.toString());
+			System.out.println("Range f: " + rangef.toString());
+			System.out.println("Domain g: " + domaing.toString());
+			System.out.println("Range g: " + rangeg.toString());
+			
+			
+		}
+		
+		newPerm = composePerms(permf, permg);
+		
+		return new ElementOfV(domainf, rangeg, newPerm);
+	}
+	
+	public static List<Integer> composePerms(List<Integer> perm1, List<Integer> perm2){
+		List<Integer> newPerm = new ArrayList<Integer>();
+		int size1 = perm1.size();
+		int size2 = perm2.size();
+		int k = 0;
+		if (size1>size2) {
+			
+			while (k<size1) {
+				int idx = perm1.get(k);
+				if (idx>size2-1) {
+					newPerm.add(idx);
+					
+				}
+				else {
+					int p = perm2.get(idx);
+					newPerm.add(p);
+				}
+				k++;
+			}
+		}
+		else if (size2>size1) {
+			while (k<size2) {
+				int p;
+				if (k>size1-1) {
+					p = perm2.get(k);
+					
+				}
+				else {
+					int idx = perm1.get(k);
+					p = perm2.get(idx);
+				}
+				newPerm.add(p);
+				k++;
+			}
+		}
+		else {
+			while ( k<perm1.size()) {
+				int idx = perm1.get(k);
+				int p = perm2.get(idx);
+				newPerm.add(p);
+				k++;
+			}
+		}
+
+		return newPerm;
+	}
+	
+	
+	public void display() {
+		this.displayDomain();
+		this.displayRange();
+		this.displayPermutation();
+	}
+	
+	
+	public static void main(String[] args) {
+		
+		
+		
+		
+		ArrayList<BinarySequence> dom1 = new ArrayList<BinarySequence>(Arrays.asList( 
+				new BinarySequence("0"),
+				new BinarySequence("100"),
+				new BinarySequence("101"),
+				new BinarySequence("1")
+				));
+		
+		ArrayList<BinarySequence> ran1 = new ArrayList<BinarySequence>(Arrays.asList( 
+				new BinarySequence("00"),
+				new BinarySequence("01"),
+				new BinarySequence("10"),
+				new BinarySequence("11")
+				));
+		
+		
+		List<Integer> perm1 = new ArrayList<Integer>(Arrays.asList(3,0,2,1));
+		
+		ArrayList<BinarySequence> dom2 = new ArrayList<BinarySequence>(Arrays.asList( 
+		new BinarySequence("00"),
+		new BinarySequence("01"),
+		new BinarySequence("1")
+		));
+		
+
+		
+		List<Integer> perm2 = new ArrayList<Integer>(Arrays.asList(1,2,0));
+//		System.out.println(perm2.toString());
+//		System.out.println(ElementOfV.addCaret(perm2, 2).toString());
+		
+//		System.out.println(dom2.toString());
+//		ArrayList<BinarySequence> domx = ElementOfV.addCaret(dom2, 2, dom2.get(2));
+//		System.out.println(domx.toString());
+//		System.out.println(h.array.toString());
+//		System.out.println(h.perm.toString());
+
+		
+
+		
+		ElementOfV f = new ElementOfV(dom1,ran1,perm1);
+		
+		ElementOfV g = new ElementOfV(dom2,dom2,perm2);
+		
+		g.multiply(f).display();
+		
+		
+		ArrayList<BinarySequence> domx = new ArrayList<BinarySequence>(Arrays.asList( 
+				new BinarySequence("00"),
+				new BinarySequence("01"),
+				new BinarySequence("1")
+				));
+		
+		ArrayList<BinarySequence> ranx = new ArrayList<BinarySequence>(Arrays.asList( 
+				new BinarySequence("0"),
+				new BinarySequence("10"),
+				new BinarySequence("11")
+				));
+		
+//		BinarySequence ranxCurrent = new BinarySequence("10");
+//		BinarySequence domxCurrent = new BinarySequence("10");
+//		System.out.println(ranxCurrent.equals(domxCurrent));
+		
+		 
+//		List<Integer> permx = new ArrayList<Integer>(Arrays.asList(1,2,0));
+//		
+//		List<Integer> permy = new ArrayList<Integer>(Arrays.asList(0,2,1));
+//		
+//		ElementOfV f = new ElementOfV(domx,ranx,permx);
+//		
+//		ElementOfV g = new ElementOfV(domx,ranx,permy);
+//		
+//		g.multiply(f).display();
+		
+//		System.out.println(addCaret(domx, 2));
+//		System.out.println(addCaret(permy, 2));
+//		System.out.println(addCaret(ranx, 1));
+		
+//		System.out.println(addCaret(domx, 2));
+//		System.out.println(addCaret(ranx,0));
+//		System.out.println(addCaret(permx, 2));
+		
+//		List<Integer> perm2 = new ArrayList<Integer>(Arrays.asList(0,2,1));
+//		
+//		
+//		ElementOfV f = new ElementOfV(dom,ran,perm1);
+//		
+//		ElementOfV g = new ElementOfV(dom,ran,perm2);
+//		
+//		System.out.println("f");
+//		f.display();
+//		System.out.println("g");
+//		g.display();
+//		System.out.println("");
+//		
+//		g.multiply(f).display();
+		
+//		ArrayList<BinarySequence> domain4 = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("")
+//				));
+//		
+//		ArrayList<BinarySequence> domain3 = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("00"),
+//				new BinarySequence("010"),
+//				new BinarySequence("011"),
+//				new BinarySequence("100"),
+//				new BinarySequence("101"),
+//				new BinarySequence("11")
+//				
+//				));
+//		
+//		ArrayList<BinarySequence> range3 = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("00"),
+//				new BinarySequence("01"),
+//				new BinarySequence("100"),
+//				new BinarySequence("1010"),
+//				new BinarySequence("1011"),
+//				new BinarySequence("11")
+//				));
+//		
+//		ArrayList<Integer> permutation3 = new ArrayList<Integer>(Arrays.asList(2,3,4,0,1,5));
+//		
+//		ElementOfV z = new ElementOfV(domain3, range3, permutation3);
+//		
+//		z.display();
+//		
+//		System.out.println("");
+//		
+//		z.reduce();
+//		z.display();
+//		
+//		System.out.println("");
+// 		
+//		
+//		ArrayList<BinarySequence> domain2 = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("000"),
+//				new BinarySequence("001"),
+//				new BinarySequence("01"),
+//				new BinarySequence("10"),
+//				new BinarySequence("1100"),
+//				new BinarySequence("1101"),
+//				new BinarySequence("111")
+//				));
+//		
+//		ArrayList<BinarySequence> range2 = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("00"),
+//				new BinarySequence("01"),
+//				new BinarySequence("100"),
+//				new BinarySequence("10100"),
+//				new BinarySequence("10101"),
+//				new BinarySequence("1011"),
+//				new BinarySequence("11")
+//				));
+//		
+//		ArrayList<Integer> permutation2 = new ArrayList<Integer>(Arrays.asList(1,0,6,2,3,4,5));
+//
+//		
+//		ElementOfV y = new ElementOfV(domain2, range2, permutation2);
+//		
+//		y.displayDomain();
+//		y.displayRange();
+//		y.displayPermutation();
+//		
+//		
+//		System.out.println("");
+//		
+//		y.reduce();
+//		
+//		y.display();
+//		
+//		System.out.println("");
+//	
+//		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("00"),
+//				new BinarySequence("01"),
+//				new BinarySequence("100"),
+//				new BinarySequence("101"),
+//				new BinarySequence("110"),
+//				new BinarySequence("111")));
+//		
+//		ArrayList<BinarySequence> range = new ArrayList<BinarySequence>(Arrays.asList(
+//				new BinarySequence("000"),
+//				new BinarySequence("001"),
+//				new BinarySequence("01"),
+//				new BinarySequence("100"),
+//				new BinarySequence("101"),
+//				new BinarySequence("11")));
+//		
+//		ArrayList<Integer> permutation = new ArrayList<Integer>(Arrays.asList(2,5,1,0,3,4));
+//		
+//		ElementOfV x = new ElementOfV(domain, range, permutation);
+//		x.display();
+//		
+//		System.out.println("");
+//		
+//		x.reduce();
+//		x.display();
+//		
+//		System.out.println();
+//		
+//		for (int p:x.getPermutation()) {
+//			System.out.println(p);
+//		}
+		
+//		ArrayList<BinarySequence> domain = new ArrayList<BinarySequence>();
+//		domain.add(new BinarySequence("00"));
+//		domain.add(new BinarySequence("01"));
+//		domain.add(new BinarySequence("10"));
+//		domain.add(new BinarySequence("11"));
+//		
+//		ArrayList<BinarySequence> range = new ArrayList<BinarySequence>();
+//		range.add(new BinarySequence("00"));
+//		range.add(new BinarySequence("010"));
+//		range.add(new BinarySequence("011"));
+//		range.add(new BinarySequence("1"));
+//		
+//		ArrayList<Integer> permutation = new ArrayList<Integer>(Arrays.asList(2,0,3,1));
+//		
+//		ElementOfV x = new ElementOfV(domain, range, permutation);
+//		
+//		x.display();
+//		
+//		ElementOfV inverse = x.getInverse();
+//		inverse.display();
+	}
+	
+	
+
+}

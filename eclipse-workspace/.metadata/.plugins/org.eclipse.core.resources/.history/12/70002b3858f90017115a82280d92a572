@@ -1,0 +1,245 @@
+package ThompsonsGroupV;
+import java.util.Stack;
+
+public class AbstractStrandDiagram {
+
+	private Vertex source;
+	private Vertex sink;
+	private DoubleLinkedList vertices;
+	//private DoubleLinkedList strands;
+	private int length;
+	private Stack<Vertex> splitsToCheck;
+	
+	public AbstractStrandDiagram() {
+		length = 0;
+	}
+	
+	public AbstractStrandDiagram(DoubleLinkedList vertices, Vertex source, Vertex sink) {
+		this.vertices = vertices;
+		length = vertices.getLength();
+		this.source = source;
+		this.sink = sink;
+	}
+	
+	public AbstractStrandDiagram(DoubleLinkedList vertices) {
+		this.vertices = vertices;
+		length = vertices.getLength();
+		int i = 0;
+		Node node = vertices.getFirstNode();
+		Vertex v;
+		Boolean foundSink = false;
+		Boolean foundSource = false;
+		while (i<length-1 && !foundSink && !foundSource) {
+			v = node.getVertex();
+			if (v.getType().equals(Type.SOURCE)) {
+				source = v;
+				foundSource = true;
+			}
+			else if (v.getType().equals(Type.SINK)) {
+				sink = v;
+				foundSink = true;
+			}
+			i++;
+			node = node.getNext();
+		}
+	}
+	
+	public Vertex getSink() {
+		return sink;
+	}
+	
+	public Vertex getSource() {
+		return source;
+	}
+	
+	public DoubleLinkedList getVertices() {
+		return vertices;
+	}
+	
+	public ClosedAbstractStrandDiagram close() {
+		return new ClosedAbstractStrandDiagram(this);
+		
+		
+		//make sure everything is appropriately deleted
+		//look for free loops
+	}
+	
+	public void addNode(Node node) {
+		vertices.add(node);
+		length++;
+		Vertex v = node.getVertex();
+		if (v.getType().equals(Type.SOURCE)) {
+			source = v;
+		}
+		else if (v.getType().equals(Type.SINK)) {
+			sink = v;
+		}
+	}
+	
+	public void deleteVertex(Vertex v) {
+		Node node = v.getNode();
+		vertices.delete(node);
+		v.delete();
+		length--;
+	}
+	
+	public static Stack<Vertex> getSplitsToCheck(DoubleLinkedList vertices){
+		Stack<Vertex> splitsToCheck = new Stack<Vertex>();
+		int i = 0;
+		Node current = vertices.getFirstNode();
+		while (i<vertices.getLength()) {
+			Vertex v = current.getVertex();
+			if (v.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(v);
+				v.setInStack(true);
+			}
+			current = current.getNext();
+			i++;
+		}
+		return splitsToCheck;
+	}
+	
+	public void reduce() {
+		this.splitsToCheck = getSplitsToCheck(this.vertices);
+		
+		while (!splitsToCheck.isEmpty()) {
+			Vertex split = splitsToCheck.pop();
+			split.setInStack(false);
+			
+			Strand lchildStrand = split.getStrand(Role.LCHILD);
+			Strand rchildStrand = split.getStrand(Role.RCHILD);
+			
+			Vertex lchildEnd = split.getEndVertex(lchildStrand);
+			Vertex rchildEnd = split.getEndVertex(rchildStrand);
+			
+			Role lchildEndRole = lchildStrand.getRole(lchildEnd);
+			Role rchildEndRole = rchildStrand.getRole(rchildEnd);
+			
+			Strand splitParentStrand = split.getStrand(Role.PARENT);
+			Vertex splitParent = split.getEndVertex(splitParentStrand);
+
+			reductionI(split, splitParent, splitParentStrand, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+					lchildEndRole, rchildEndRole);
+			
+			reductionII(split, splitParent, splitParentStrand, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+					lchildEndRole, rchildEndRole);
+			
+			
+			
+		}
+		
+	}
+	
+	public void reductionI(Vertex split, Vertex splitParent, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+			Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole) {
+		if (lchildEnd.equals(rchildEnd)
+				&& lchildEndRole.equals(Role.LPARENT)
+				&& rchildEndRole.equals(Role.RPARENT)) {
+			
+			
+			Vertex merge = lchildEnd;
+			Strand mergeChildStrand = merge.getStrand(Role.CHILD);
+			Role newRole = mergeChildStrand.getRole(merge);
+			Vertex mergeChild = merge.getEndVertex(mergeChildStrand);
+			
+			splitParent.setEndVertex(splitParentStrand, mergeChild, newRole);
+			
+			//Delete vertices
+			deleteVertex(split);
+			deleteVertex(merge);
+			
+			//Delete strands
+			lchildStrand.delete();
+			rchildStrand.delete();
+			mergeChildStrand.delete();
+			
+			if (splitParent.getType().equals(Type.SPLIT)) {
+				if (!splitParent.isInStack()) {
+					splitsToCheck.push(splitParent);	
+					splitParent.setInStack(true);
+				}
+			}
+			if (mergeChild.getType().equals(Type.SPLIT)) {
+				if (!mergeChild.isInStack()) {
+					splitsToCheck.push(mergeChild);
+					mergeChild.setInStack(true);
+				}
+			}
+		}
+	}
+	
+	public void reductionII(Vertex split, Vertex splitParent, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+			Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole) {
+		if(splitParent.getType().equals(Type.MERGE)) {
+			//Type II Reduction
+			
+			Vertex merge = splitParent;
+			Strand lparentStrand = merge.getStrand(Role.LPARENT);
+			Strand rparentStrand = merge.getStrand(Role.RPARENT);
+			Vertex lparentEnd = merge.getEndVertex(lparentStrand);
+			Vertex rparentEnd = merge.getEndVertex(rparentStrand);
+			
+			
+			lchildEnd = split.getEndVertex(lchildStrand);
+			rchildEnd = split.getEndVertex(rchildStrand);
+			
+			Role newLeftRole = lchildStrand.getRole(lchildEnd);
+			Role newRightRole = rchildStrand.getRole(rchildEnd);
+			
+			lparentEnd.setEndVertex(lparentStrand, lchildEnd, newLeftRole);
+			rparentEnd.setEndVertex(rparentStrand, rchildEnd, newRightRole);
+			
+			//Delete vertices
+			deleteVertex(merge);
+			deleteVertex(split);
+			
+			//Delete strands
+			lchildStrand.delete();
+			rchildStrand.delete();
+			splitParentStrand.delete();
+			
+			
+			if (lparentEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(lparentEnd);
+				lparentEnd.setInStack(true);
+			}
+			if (rparentEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(rparentEnd);
+				rparentEnd.setInStack(true);
+			}
+			if (lchildEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(lchildEnd);
+				lchildEnd.setInStack(true);
+			}
+			if (rchildEnd.getType().equals(Type.SPLIT)) {
+				splitsToCheck.push(rchildEnd);
+				rchildEnd.setInStack(true);
+			}
+		}
+	}
+	
+	public String display() {
+		StringBuilder r = new StringBuilder();
+		int i = 0;
+		Node node = vertices.getFirstNode();
+		
+		while(i<length) {
+			System.out.println(node.getVertex().getId() + ", ");
+			System.out.println(node.getVertex().display());
+			node = node.getNext();
+			i++;
+		}
+//		while (i<length) {
+//			r.append(i + ", " + node.getVertex().display());
+//			r.append(System.getProperty("line.separator"));
+//			r.append(System.getProperty("line.separator"));
+//			if (i==length-1) {
+//				break;
+//			}
+//			node = node.getNext();
+//			i++;
+//		}
+		return r.toString();
+	}
+	
+}

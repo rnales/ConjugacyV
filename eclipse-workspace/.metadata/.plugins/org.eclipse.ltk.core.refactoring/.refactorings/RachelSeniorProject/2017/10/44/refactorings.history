@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename type &apos;ThompsonsGroupV.ElementOfV.HoldArrays&apos; to &apos;AddCaretHelper&apos;&#x0D;&#x0A;- Original project: &apos;RachelSeniorProject&apos;&#x0D;&#x0A;- Original element: &apos;ThompsonsGroupV.ElementOfV.HoldArrays&apos;&#x0D;&#x0A;- Renamed element: &apos;ThompsonsGroupV.ElementOfV.AddCaretHelper&apos;&#x0D;&#x0A;- Update references to refactored element&#x0D;&#x0A;- Update textual occurrences in comments and strings" description="Rename type &apos;HoldArrays&apos;" flags="589826" id="org.eclipse.jdt.ui.rename.type" input="/src&lt;ThompsonsGroupV{ElementOfV.java[ElementOfV[HoldArrays" matchStrategy="1" name="AddCaretHelper" qualified="false" references="true" similarDeclarations="false" stamp="1509299537467" textual="false" version="1.0"/>
+</session>

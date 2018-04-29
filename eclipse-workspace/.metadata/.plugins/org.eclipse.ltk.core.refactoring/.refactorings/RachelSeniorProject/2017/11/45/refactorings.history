@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;s&apos; in &apos;ThompsonsGroupV.AbstractStandDiagram.reduce()&apos; to &apos;splitsToCheck&apos;&#x0D;&#x0A;- Original project: &apos;RachelSeniorProject&apos;&#x0D;&#x0A;- Original element: &apos;ThompsonsGroupV.AbstractStandDiagram.reduce().s&apos;&#x0D;&#x0A;- Renamed element: &apos;s&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;s&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;ThompsonsGroupV{AbstractStandDiagram.java[AbstractStandDiagram~reduce@s!407!444!421!421!QStack\&lt;QVertex;&gt;;!0!false" name="splitsToCheck" references="true" stamp="1510261734009" version="1.0"/>
+</session>

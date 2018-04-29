@@ -1,0 +1,580 @@
+package ThompsonsGroupV;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.Stack;
+import Jama.Matrix;
+
+public class ClosedAbstractStrandDiagram {
+
+	private DoubleLinkedList vertices;
+	private Set<Integer> freeLoops;
+	private Stack<Vertex> splitsToCheck;
+	private LinkedList<ClosedAbstractStrandDiagram> components;
+	private Matrix matrix = null;
+	private int numEdges;
+	private int numVertices;
+	private LinkedList<Strand> edges;
+	private static int count = 0;
+	private int id;
+	private boolean foundIsomorphism = false; //for use in conjugacy checker
+	private boolean foundConjugacy = false; //for use in conjugacy checker
+	private boolean idsAssigned = false; //for use in construction of coboundary matrix
+	private boolean componentsFound; //for use in conjugacy checker
+	
+	/*
+	 * Constructor for Closed Abstract Strand Diagrams
+	 * using an Abstract Strand Diagram
+	 */
+	public ClosedAbstractStrandDiagram (AbstractStrandDiagram d) {
+		DoubleLinkedList vertices = d.getVertices(); //constant
+		id = count++; //constant
+		Vertex sink = d.getSink(); //constant
+		Vertex source = d.getSource(); //constant
+		Strand bottom = sink.getStrand(Role.PARENT); //constant
+		Vertex merge = sink.getOtherVertex(bottom); //constant
+		Strand top = source.getStrand(Role.CHILD); //constant
+		Vertex split = source.getOtherVertex(top); //constant
+		merge.setEndVertex(bottom, split, Role.PARENT); //constant
+		bottom.incrementCValue(); //constant
+		this.vertices = vertices; //constant
+		this.freeLoops = new HashSet<Integer>(); //constant
+		
+		//Delete source and sink
+		deleteVertex(sink); 
+		deleteVertex(source);
+		
+		//Delete unused strand, formerly connecting source to top merge
+		top.delete(); //constant
+		
+		componentsFound = false; //constant
+		components = null; //constant
+	}
+	
+	/*
+	 * Constructor for Closed Abstract Strand Diagrams
+	 * using a Double Linked List
+	 * for use after finding components from another diagram
+	 * (not concerned with free loops)
+	 */
+	public ClosedAbstractStrandDiagram(DoubleLinkedList vertices) {
+		this.vertices = vertices;
+		this.freeLoops = new HashSet<Integer>();
+		id = count++;
+		components = null;
+		componentsFound = false;
+	}
+	
+	/*
+	 * Return the ID of this Closed Abstract Strand Diagram
+	 */
+	public int getID() {
+		return id;
+	}
+	
+	/*
+	 * Return the number of vertices in this diagram
+	 */
+	public int size() {
+		return vertices.getLength();
+	}
+	
+	/*
+	 * Return the set of free loops for this diagram
+	 */
+	public Set<Integer> getFreeLoops(){
+		return freeLoops;
+	}
+	
+	/*
+	 * Add a vertex to this diagram
+	 */
+	public void addVertex(Node n) {
+		this.vertices.add(n);
+	}
+	
+	/*
+	 * Return the double linked list of vertices for this diagram
+	 */
+	public DoubleLinkedList getVertices() {
+		return vertices;
+	}
+	
+	/*
+	 * Delete a vertex from this diagram
+	 */
+	public void deleteVertex(Vertex v) {
+		Node node = v.getNode();
+		vertices.delete(node);
+		v.delete();
+	}
+	
+	/*
+	 * The following 7 methods are getters and setters
+	 * for this diagram's boolean markers
+	 */
+	public boolean foundIsomorphism() {
+		return foundIsomorphism;
+	}
+	
+	public void foundIsomorphism(boolean f) {
+		foundIsomorphism = f;
+	}
+	
+	public void idsAssigned(boolean b) {
+		idsAssigned = b;
+	}
+	
+	public boolean idsAssigned() {
+		return idsAssigned;
+	}
+	
+	public boolean foundConjugacy() {
+		return foundConjugacy;
+	}
+	
+	public void foundConjugacy(boolean b) {
+		foundConjugacy = b;
+	}
+	
+	public void unmarkAll() {
+		Node node  = vertices.getFirstNode();
+		Vertex v;
+		Collection<Strand> strands;
+		int i = 0;
+		while (i<vertices.getLength()) {
+			v = node.getVertex();
+			v.unMark();
+			strands = v.getStrands().values();
+			for (Strand s: strands) s.unMark();
+			i++;
+			node = node.getNext();
+		}
+	}
+	
+	/*
+	 * Return a stack of all of this diagram's split vertices
+	 * Used to check for reductions
+	 */
+	public static Stack<Vertex> getSplitsToCheck(DoubleLinkedList vertices){
+		Stack<Vertex> splitsToCheck = new Stack<Vertex>(); //constant
+		int i = 0; //constant
+		Node current = vertices.getFirstNode(); //constant
+		int length = vertices.getLength(); //constant
+		while (i<length) { //linear in number of vertices
+			Vertex v = current.getVertex(); //constant
+			if (v.getType().equals(Type.SPLIT)) { //constant
+				splitsToCheck.push(v); //constant
+				v.setInStack(true); //constant
+			}
+			current = current.getNext(); //constant
+			i++; //constant
+		}
+		return splitsToCheck;
+	}
+	
+	/*
+	 * Reduce this diagram
+	 */
+	public void reduce() {//n = number of vertices, quadratic in n
+		this.splitsToCheck = getSplitsToCheck(this.vertices);	//linear in n
+		while (!splitsToCheck.isEmpty()) { //max size n/2, n is either the same or less on every iteration of the loop
+			Vertex split = splitsToCheck.pop();
+			split.setInStack(false);
+			if (split.hasBeenDeleted()) {
+				continue;
+			}
+			else {
+				Strand lchildStrand = split.getStrand(Role.LCHILD);
+				Strand rchildStrand = split.getStrand(Role.RCHILD);
+				
+				Vertex lchildEnd = lchildStrand.getEndVertex();
+				Vertex rchildEnd = rchildStrand.getEndVertex();
+				
+				Role lchildEndRole = lchildStrand.getEndRole(); 
+				Role rchildEndRole = rchildStrand.getEndRole(); 
+				
+				Strand splitParentStrand = split.getStrand(Role.PARENT);
+				Vertex splitParent = splitParentStrand.getBeginVertex();
+				
+				int lchildC = lchildStrand.getCValue();
+				int rchildC = rchildStrand.getCValue();
+				
+				if (lchildEnd.equals(rchildEnd)
+						&& lchildEndRole.equals(Role.LPARENT)
+						&& rchildEndRole.equals(Role.RPARENT)
+						&& lchildC == rchildC) {
+					reductionI(split, splitParent, splitParentStrand, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+							lchildEndRole, rchildEndRole, lchildC);
+				}
+				
+				else if(splitParent.getType().equals(Type.MERGE)) {
+					reductionII(split, splitParent, splitParentStrand, lchildEnd, lchildStrand, rchildEnd, rchildStrand, 
+							lchildEndRole, rchildEndRole);
+				}
+			}
+		}		
+	}
+	
+	/* 
+	 * Type I reduction helper method
+	 */
+	public void reductionI(Vertex split, Vertex splitParent, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+			Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole, int lchildC) {
+		Vertex merge = lchildEnd;
+		Strand mergeChildStrand = merge.getStrand(Role.CHILD);
+		Vertex mergeChild = mergeChildStrand.getEndVertex();
+		Role newEndRole = mergeChildStrand.getEndRole();
+		//check for free loops
+		if (mergeChildStrand.equals(splitParentStrand)){
+			int f = splitParentStrand.getCValue() + lchildC;
+			freeLoops.add(f); //linear in n/2 -- jk probably not
+		}
+		else {
+			int newC = splitParentStrand.getCValue() + lchildC + mergeChildStrand.getCValue();
+			splitParent.setEndVertex(splitParentStrand, newC, mergeChild, newEndRole);
+		}
+		//Delete vertices
+		split.hasBeenDeleted(true);
+		merge.hasBeenDeleted(true);
+		deleteVertex(split);
+		deleteVertex(merge);
+
+		//Delete strands
+		lchildStrand.delete();
+		rchildStrand.delete();
+		mergeChildStrand.delete();
+				
+		if (splitParent.getType().equals(Type.SPLIT) && !splitParent.isInStack()) {
+			if (!splitParent.isInStack()) {
+				splitsToCheck.push(splitParent);	
+				splitParent.setInStack(true);
+			}
+		}
+		if (mergeChild.getType().equals(Type.SPLIT) && !mergeChild.isInStack()) {
+			if (!mergeChild.isInStack()) {
+				splitsToCheck.push(mergeChild);
+				mergeChild.setInStack(true);
+			}
+		}	
+	}
+	
+	/* 
+	 * Type II reduction helper method
+	 */
+	public void reductionII(Vertex split, Vertex merge, Strand splitParentStrand, Vertex lchildEnd, Strand lchildStrand, 
+		Vertex rchildEnd, Strand rchildStrand, Role lchildEndRole, Role rchildEndRole) {
+		Strand lparentStrand = merge.getStrand(Role.LPARENT);
+		Strand rparentStrand = merge.getStrand(Role.RPARENT);
+		Vertex lparentBegin = lparentStrand.getBeginVertex();
+		Vertex rparentBegin = rparentStrand.getBeginVertex();
+		
+		//check for free loops and special cases
+		boolean leftToLeft = lparentStrand.equals(lchildStrand);
+		boolean rightToRight = rparentStrand.equals(rchildStrand);
+		boolean leftToRight = lparentStrand.equals(rchildStrand);
+		boolean rightToLeft = rparentStrand.equals(lchildStrand);
+		
+		int splitParentC = splitParentStrand.getCValue();
+		int lparentC = lparentStrand.getCValue();
+		int rparentC = rparentStrand.getCValue();
+		int lchildC = lchildStrand.getCValue();
+		int rchildC = rchildStrand.getCValue();
+		
+		if (leftToLeft && rightToRight) {
+			int f1 = lparentC + splitParentC;
+			freeLoops.add(f1);
+			int f2 = rparentC + splitParentC;
+			freeLoops.add(f2);
+		}
+		else if (leftToLeft) {
+			int f = lparentC + splitParentC;
+			freeLoops.add(f);
+			int newRightC = rparentC + splitParentC + rchildC;
+			rparentBegin.setEndVertex(rparentStrand, newRightC, rchildEnd, rchildEndRole);
+		}
+		else if (rightToRight) {
+			int f = rparentC + splitParentC;
+			freeLoops.add(f);
+			int newLeftC = lparentC + splitParentC + lchildC;
+			lparentBegin.setEndVertex(lparentStrand, newLeftC, lchildEnd, lchildEndRole);
+		}
+		else if (leftToRight && rightToLeft) {
+			int f = lparentC + rparentC + 2*splitParentC;
+			freeLoops.add(f);
+		}
+		//No Free Loops, special case #1
+		else if (leftToRight) {
+			//no additional deletions, one fewer strand modification
+			int newC = rparentC + 2*splitParentC + rchildC + lchildC;
+			rparentBegin.setEndVertex(rparentStrand, newC, lchildEnd, lchildEndRole);				
+		}
+		//No Free Loops, special case #2
+		else if (rightToLeft) {
+			//symmetric of above case
+			int newC = lparentC + 2*splitParentC + rchildC + lchildC;
+			lparentBegin.setEndVertex(lparentStrand, newC, rchildEnd, rchildEndRole);	
+		}
+		//Last case: no free loops or special cases
+		else {
+			int newLeftC = lparentC + splitParentC + lchildC;
+			int newRightC = rparentC + splitParentC + rchildC;
+			lparentBegin.setEndVertex(lparentStrand, newLeftC, lchildEnd, lchildEndRole);
+			rparentBegin.setEndVertex(rparentStrand, newRightC, rchildEnd, rchildEndRole);
+		}
+		//Delete vertices
+		split.hasBeenDeleted(true);
+		merge.hasBeenDeleted(true);
+		deleteVertex(merge);
+		deleteVertex(split);
+
+		//Delete strands
+		lchildStrand.delete();
+		rchildStrand.delete();
+		splitParentStrand.delete();
+		
+		//Check for potential new reductions created
+		if (lparentBegin.getType().equals(Type.SPLIT) && !lparentBegin.isInStack()) {
+			splitsToCheck.push(lparentBegin);
+			lparentBegin.setInStack(true);
+		}
+		if (rparentBegin.getType().equals(Type.SPLIT) && !rparentBegin.isInStack()) {
+			splitsToCheck.push(rparentBegin);
+			rparentBegin.setInStack(true);
+		}
+		if (lchildEnd.getType().equals(Type.SPLIT) && !lchildEnd.isInStack()) {
+			splitsToCheck.push(lchildEnd);
+			lchildEnd.setInStack(true);
+		}
+		if (rchildEnd.getType().equals(Type.SPLIT) && !rchildEnd.isInStack()) {
+			splitsToCheck.push(rchildEnd);
+			rchildEnd.setInStack(true);
+		}
+	}
+	
+	/*
+	 * Return a linked list of this diagram's separate components
+	 */
+	public LinkedList<ClosedAbstractStrandDiagram> getComponents(){ //linear!!
+		if (componentsFound) return components;
+		LinkedList<ClosedAbstractStrandDiagram> components = new LinkedList<ClosedAbstractStrandDiagram>();
+		Stack<Node> nodesToProcess = new Stack<Node>();
+		Node currentNode = vertices.getFirstNode();
+		Node connectedNode;
+		Vertex currentVertex;
+		Vertex processVertex;
+		Vertex connectedVertex;
+		Collection<Strand> strands;
+		int i = 0;
+		int lengthVertices = vertices.getLength();
+		while (i<lengthVertices) { //n = num vertices, linear on n
+			currentVertex = currentNode.getVertex();
+			if (!currentVertex.isFound()) {
+				currentVertex.hasBeenFound(true);
+				nodesToProcess.push(currentNode);
+				DoubleLinkedList newComponent = new DoubleLinkedList(new Node(currentVertex));
+				Node processNode;
+				while (!nodesToProcess.isEmpty()) { //linear on n (if connected to all vertices)
+					processNode = nodesToProcess.pop();
+					processVertex = processNode.getVertex();
+					strands = processVertex.getStrands().values();
+					for (Strand s : strands) {
+						connectedVertex = processVertex.getOtherVertex(s);
+						if (!connectedVertex.isFound()) {
+							connectedVertex.hasBeenFound(true);
+							connectedNode = connectedVertex.getNode();
+							nodesToProcess.push(connectedNode);
+							newComponent.add(new Node(connectedVertex));	
+						}
+					}
+				}
+				components.add(new ClosedAbstractStrandDiagram(newComponent));
+			}
+			i++;
+			currentNode = currentNode.getNext();
+		}
+		componentsFound = true;
+		return components;
+	}	
+	
+	/*
+	 * Return the difference in cocycles between two isomorphic Closed Abstract Strand Diagrams
+	 * To be called after construction of the coboundary matrix
+	 */
+	public Matrix getCocycleDifference(HashMap<Strand, Strand> strandBijection) {
+		Matrix cocycleDiff = new Matrix(this.numEdges , 1);
+		Strand s;
+		Strand t;
+		int rowID = 0;
+		while (rowID < this.numEdges) { //linear on 3n/2
+			s = this.edges.get(rowID); //linear on 3n/2
+			t = strandBijection.get(s);
+			cocycleDiff.set(rowID, 0, s.getCValue() - t.getCValue()); //constant
+			rowID++;
+		}
+		return cocycleDiff;
+	}
+	
+	/*
+	 * Construct the coboundary matrix for this diagram
+	 */
+	public Matrix getCoboundaryMatrix() { //matrix construction is 3n -> n is number of vertices, but assigning ID's is quadratic
+		int i;
+		int numEdges;
+		int numVertices;
+		this.edges = new LinkedList<Strand>();
+		HashMap<Role, Strand> strands = new HashMap<Role, Strand>();
+		int length = this.vertices.getLength();
+		i = 0;
+		Node n = this.vertices.getFirstNode();
+		Vertex vertex;
+		while (i < length) { //linear on n
+			vertex = n.getVertex();
+			vertex.setColumnID(i);
+			n = n.getNext();
+			i++;
+		}
+		i = 0;
+		n = this.vertices.getFirstNode();
+		while (i < length) { //linear on n
+			Vertex v = n.getVertex();
+			strands = v.getStrands();
+			for (Strand s: strands.values()) s.markNotFound();
+			i++;
+			n = n.getNext();
+		}
+		i = 0;
+		n = this.vertices.getFirstNode();
+		numEdges = 0;
+		while (i < length) { //linear on n
+			Vertex v = n.getVertex();
+			strands = v.getStrands();
+			for (Strand s: strands.values()) { //constant
+				if (!s.isFound()) {
+					s.markFound();
+					s.setRowID(numEdges);
+					this.edges.add(s);
+					numEdges++;
+				}
+			}
+			i++;
+			n = n.getNext();
+		}
+		this.idsAssigned(true);
+		//after loop, numEdges = number of edges = length of each column = number of rows
+		//number of columns = number of vertices = vertices.size()
+		numVertices = length;
+		//Create matrix filled with 0's
+		this.numEdges = numEdges;
+		this.numVertices = numVertices;
+		matrix = new Matrix(numEdges, numVertices);
+		//assign 1's and -1's based on incoming and outgoing vertices
+		i = 0;
+		Vertex v;
+		n = this.vertices.getFirstNode();
+		int vColID;
+		int sRowID;
+		while (i < numVertices) { //linear on n
+			v = n.getVertex();
+			vColID = v.getColumnID();
+			strands = v.getStrands(); //constant
+			Strand s;
+			for (Role r: strands.keySet()) { //constant
+				s = v.getStrand(r);
+				sRowID = s.getRowID();
+				if (r.equals(Role.PARENT) 
+						|| r.equals(Role.LPARENT)
+						|| r.equals(Role.RPARENT)) {
+					//incoming edge
+					double temp = matrix.get(sRowID, vColID);
+					temp = temp - 1.0;
+					matrix.set(sRowID, vColID, temp);
+				}
+				else if (r.equals(Role.CHILD)
+						|| r.equals(Role.LCHILD)
+						|| r.equals(Role.RCHILD)) {
+					//outgoing edge
+					double temp = matrix.get(sRowID, vColID);
+					temp = temp + 1.0;
+					matrix.set(sRowID, vColID, temp);
+				}		
+			}
+			i++;
+			n = n.getNext();
+		}
+		return matrix;
+	}
+			
+	/* 
+	 * Used for debugging 
+	 */	
+		
+	public ClosedAbstractStrandDiagram() {
+		id = count++;
+		components = null;
+		componentsFound = false;
+	}
+	
+	public String toString() {
+		return this.id + "";
+	}
+	
+	public String toString2() {
+		StringBuilder r = new StringBuilder("BEGIN CLOSED ABSTRACT STRAND DIAGRAM");
+		r.append(System.getProperty("line.separator"));
+		r.append(System.getProperty("line.separator"));
+		int i = 0;
+		Node node = vertices.getFirstNode();
+		
+		r.append("FREE LOOPS: ");
+		if (this.freeLoops.size() == 0) {
+			r.append("none");
+		}
+		else {
+			int size = this.freeLoops.size();
+			int cnt = 1;
+			for (int f: this.freeLoops) {
+				if (cnt < size) {
+					r.append(f + ", ");
+				}
+				else {
+					r.append(f);
+				}
+				cnt ++;
+			}
+		}
+		r.append(System.getProperty("line.separator"));
+		r.append(System.getProperty("line.separator"));
+		
+		while(i<vertices.getLength()) {
+			r.append("Vertex "+ i);
+			r.append(System.getProperty("line.separator"));
+			r.append(node.getVertex().toString());
+			node = node.getNext();
+			i++;
+			r.append(System.getProperty("line.separator"));
+		}
+		r.append("END OF CLOSED ABSTRACT STRAND DIAGRAM" + System.getProperty("line.separator"));
+
+		return r.toString();
+	}
+	
+	public static void main(String[] args) {
+		String domain[] = {"0", "10", "110", "111"};
+		ArrayList<BinarySequence> d = BinarySequence.newList(domain);
+		String range[] = {"0", "100", "101", "11"};
+		ArrayList<BinarySequence> r = BinarySequence.newList(range);
+		ArrayList<Integer> p = new ArrayList<Integer>(Arrays.asList(2, 0, 3, 1));
+		TreeDiagram x = new TreeDiagram(d,r,p);
+		
+		ClosedAbstractStrandDiagram casd = x.convertToStrandDiagram().close();
+		casd.reduce();
+		System.out.println(casd.toString2());
+	}
+	
+}

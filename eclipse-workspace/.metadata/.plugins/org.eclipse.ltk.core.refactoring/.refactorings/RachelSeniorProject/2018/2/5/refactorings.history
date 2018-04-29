@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;connect&apos; in &apos;ThompsonsGroupV.AbstractStrandDiagram.multiply(...)&apos; to &apos;connectingStrand&apos;&#x0D;&#x0A;- Original project: &apos;RachelSeniorProject&apos;&#x0D;&#x0A;- Original element: &apos;ThompsonsGroupV.AbstractStrandDiagram.multiply(AbstractStrandDiagram).connect&apos;&#x0D;&#x0A;- Renamed element: &apos;connect&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;connect&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;ThompsonsGroupV{AbstractStrandDiagram.java[AbstractStrandDiagram~multiply~QAbstractStrandDiagram;@connect!2009!2054!2016!2022!QStrand;!0!false" name="connectingStrand" references="true" stamp="1517585867260" version="1.0"/>
+</session>

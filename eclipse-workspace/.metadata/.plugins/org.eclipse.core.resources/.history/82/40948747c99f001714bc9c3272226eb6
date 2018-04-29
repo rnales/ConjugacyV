@@ -1,0 +1,38 @@
+package ThompsonsGroupV;
+import java.lang.IllegalArgumentException;
+
+
+public class BinarySequence {
+	
+	int val;
+	
+	public BinarySequence(int sequence) {
+		
+		int[] badDigits = {2,3,4,5,6,7,8,9};
+		for (int i : badDigits) {
+			String s = String.valueOf(i);
+			if (("" + sequence).contains(s)){
+				System.out.println("Sequence: " + sequence + ", digit: " + s);
+				throw new IllegalArgumentException("You must enter a sequence containing only 0's and 1's");
+			}
+		}
+		
+		val = sequence;
+		
+	}
+	
+	public static void main(String args[]) {
+		
+		try {
+			BinarySequence s = new BinarySequence(23);
+		}
+		catch(IllegalArgumentException e){
+			System.out.println("Caught exception");
+		}
+			
+		
+		BinarySequence t = new BinarySequence(0110);
+		System.out.println(t);
+	}
+
+}
